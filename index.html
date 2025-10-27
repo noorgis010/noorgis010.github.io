@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Ramallah Waste Containers</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" />
+  <style>
+    body { margin:0; height:100%; width:100%; }
+    #map { position:absolute; top:0; bottom:0; width:100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+  <script>
+    // إنشاء الخريطة
+    const map = L.map("map", {
+      zoomSnap: 0.5,
+      center: [31.9045, 35.2045],
+      zoom: 17.5
+    });
+
+    // خريطة الأساس
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap & CARTO',
+      subdomains: 'abcd',
+      maxZoom: 20
+    }).addTo(map);
+
+    // تحميل بيانات JSON
+    $.when(
+      $.getJSON("RamallahZones.json"),
+      $.getJSON("wasteContainer.json")
+    ).done(function (rzResp, wcResp) {
+      const RZ = rzResp[0];
+      const WC = wcResp[0];
+
+      const zonesLayer = L.geoJSON(RZ, {
+        style: {
+          fillColor: "yellow",
+          fillOpacity: 0.3,
+          color: "yellow",
+          weight: 1
+        },
+        onEachFeature: function (feature, layer) {
+          layer.on("click", function () {
+            alert("Zone Name: " + (feature.properties?.NAME ?? "N/A"));
+          });
+        }
+      });
+
+      const wasteContainersLayer = L.geoJSON(WC, {
+        pointToLayer: function (feature, latlng) {
+          return L.circleMarker(latlng, {
+            radius: 5,
+            fillColor: "orange",
+            color: "orange",
+            weight: 1,
+            fillOpacity: 0.8
+          });
+        },
+        onEachFeature: function (feature, layer) {
+          layer.on("click", function () {
+            alert("Waste Container Type: " + (feature.properties?.TYPE_OF_WA ?? "N/A"));
+          });
+        }
+      });
+
+      zonesLayer.addTo(map);
+      wasteContainersLayer.addTo(map);
+
+      L.control.layers({}, {
+        "Zones": zonesLayer,
+        "Waste Containers": wasteContainersLayer
+      }).addTo(map);
+    }).fail(function (jqxhr, textStatus, error) {
+      console.error("Error loading GeoJSON:", textStatus, error);
+      alert("⚠️ Error loading one of the GeoJSON files. Check console for details.");
+    });
+  </script>
+</body>
+</html>
