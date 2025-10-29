@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Ramallah Waste Containers</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" />
+  <style>
+    body { margin:0; height:100%; width:100%; }
+    #map { position:absolute; top:0; bottom:0; width:100%; }
+
+    /* ✅ تكبير وتحسين مربعات الـPopup */
+    .custom-popup .leaflet-popup-content {
+      width: 260px;
+      font-size: 16px;
+      line-height: 1.4;
+    }
+    .custom-popup .leaflet-popup-content-wrapper {
+      padding: 10px 14px;
+      border-radius: 10px;
+    }
+
+    /* ✅ جعل المقياس واضح فوق الخلفية الداكنة */
+    .leaflet-control-scale {
+      background: rgba(255, 255, 255, 0.8);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #000;
+      font-size: 12px;
+    }
+
+    /* ✅ مربع الفيديو */
+    #videoBox {
+      position: absolute;
+      bottom: 80px;
+      left: 10px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 8px;
+      padding: 5px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.4);
+    }
+    #videoBox iframe {
+      width: 260px;
+      height: 150px;
+      border-radius: 6px;
+      border: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- ✅ الفيديو -->
+  <div id="videoBox">
+    <iframe
+      src="https://www.youtube.com/embed/v8HIJYyBeSg?autoplay=1&mute=1"
+      title="Waste Management Video"
+      frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen>
+    </iframe>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+  <!-- ✅ مكتبة خريطة الكثافة -->
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+  <script>
+    // إنشاء الخريطة
+    const map = L.map("map", {
+      zoomSnap: 0.5,
+      center: [31.9045, 35.2045],
+      zoom: 17.5
+    });
+
+    // خريطة الأساس
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap & CARTO',
+      subdomains: 'abcd',
+      maxZoom: 20
+    }).addTo(map);
+
+    // تحميل بيانات JSON
+    $.when(
+      $.getJSON("RamallahZones.json"),
+      $.getJSON("wasteContainer.json")
+    ).done(function (rzResp, wcResp) {
+      const RZ = rzResp[0];
+      const WC = wcResp[0];
+
+      // طبقة الزونز
+      const zonesLayer = L.geoJSON(RZ, {
+        style: {
+          fillColor: "yellow",
+          fillOpacity: 0.3,
+          color: "yellow",
+          weight: 1
+        },
+        onEachFeature: function (feature, layer) {
+          layer.bindPopup(`
+            <b>Zone:</b> ${feature.properties.NAME_ENGLI ?? "N/A"}<br>
+            <b>Mail Code:</b> ${feature.properties.MAIL_CODE ?? "N/A"}
+          `, {
+            className: 'custom-popup'
+          });
+        }
+      });
+
+      // طبقة الحاويات
+      const wasteContainersLayer = L.geoJSON(WC, {
+        pointToLayer: function (feature, latlng) {
+          return L.circleMarker(latlng, {
+            radius: 6,
+            fillColor: "orange",
+            color: "#fff",
+            weight: 1.5,
+            fillOpacity: 1
+          });
+        },
+        onEachFeature: function (feature, layer) {
+          const material = feature.properties?.TYPE_OF_WA ?? "N/A";
+          layer.bindPopup(`
+            <b>Waste Container</b><br>
+            <b>Material:</b> ${material}
+          `, { className: 'custom-popup' });
+
+          layer.on("click", function () {
+            layer.openPopup();
+            layer.setStyle({ radius: 8 });
+            setTimeout(() => layer.setStyle({ radius: 6 }), 500);
+          });
+        }
+      });
+
+      // ✅ خريطة الكثافة (Heatmap)
+      const heatPoints = WC.features.map(f => [
+        f.geometry.coordinates[1], 
+        f.geometry.coordinates[0]
+      ]);
+      const heatLayer = L.heatLayer(heatPoints, {
+        radius: 22,
+        blur: 28,
+        maxZoom: 19,
+        gradient: {
+          0.2: 'blue',
+          0.4: 'lime',
+          0.6: 'yellow',
+          0.8: 'orange',
+          1.0: 'red'
+        }
+      }).addTo(map); // ✅ مفعّلة من البداية
+
+      // إضافة الطبقات
+      zonesLayer.addTo(map);
+      wasteContainersLayer.addTo(map);
+
+      // الكنترول
+      L.control.layers({}, {
+        "Zones": zonesLayer,
+        "Waste Containers": wasteContainersLayer,
+        "Heatmap": heatLayer
+      }).addTo(map);
+    });
+
+    // ✅ المقياس
+    L.control.scale({ metric: true, imperial: false, position: 'bottomleft' }).addTo(map);
+
+    // ✅ زر البيت
+    const home = L.control({ position: 'topleft' });
+    home.onAdd = () => {
+      const b = L.DomUtil.create('button', 'leaflet-bar');
+      b.textContent = '🏠';
+      b.style.background = 'white';
+      b.style.cursor = 'pointer';
+      b.title = 'Reset view';
+      b.onclick = () => map.setView([31.9045, 35.2045], 17.5);
+      return b;
+    };
+    home.addTo(map);
+  </script>
+</body>
+</html>
