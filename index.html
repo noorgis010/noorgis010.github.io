@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Ramallah Waste Containers</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.6.0/dist/leaflet.css" />
+  <style>
+    body { margin:0; height:100%; width:100%; }
+    #map { position:absolute; top:0; bottom:0; width:100%; }
+
+    /* ✅ تكبير وتحسين مربعات الـPopup */
+    .custom-popup .leaflet-popup-content {
+      width: 260px;
+      font-size: 16px;
+      line-height: 1.4;
+    }
+    .custom-popup .leaflet-popup-content-wrapper {
+      padding: 10px 14px;
+      border-radius: 10px;
+    }
+    .custom-popup .leaflet-popup-tip {
+      width: 14px; 
+      height: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <script src="https://unpkg.com/leaflet@1.6.0/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+  <script>
+    // إنشاء الخريطة
+    const map = L.map("map", {
+      zoomSnap: 0.5,
+      center: [31.9045, 35.2045],
+      zoom: 17.5
+    });
+
+    // خريطة الأساس
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap & CARTO',
+      subdomains: 'abcd',
+      maxZoom: 20
+    }).addTo(map);
+
+    // تحميل بيانات JSON
+    $.when(
+      $.getJSON("RamallahZones.json"),
+      $.getJSON("wasteContainer.json")
+    ).done(function (rzResp, wcResp) {
+      const RZ = rzResp[0];
+      const WC = wcResp[0];
+
+      const zonesLayer = L.geoJSON(RZ, {
+        style: {
+          fillColor: "yellow",
+          fillOpacity: 0.3,
+          color: "yellow",
+          weight: 1
+        },
+        onEachFeature: function (feature, layer) {
+          // ✅ Popup مع تكبير وتحسين الشكل
+          layer.bindPopup(`
+            <b>Zone:</b> ${feature.properties.NAME_ENGLI ?? "N/A"}<br>
+            <b>Mail Code:</b> ${feature.properties.MAIL_CODE ?? "N/A"}
+          `, {
+            maxWidth: 320,
+            minWidth: 220,
+            className: 'custom-popup'
+          });
+        }
+      });
+
+      const wasteContainersLayer = L.geoJSON(WC, {
+        pointToLayer: function (feature, latlng) {
+          return L.circleMarker(latlng, {
+            radius: 6,
+            fillColor: "orange",
+            color: "#fff",
+            weight: 1.5,
+            fillOpacity: 1
+          });
+        },
+        onEachFeature: function (feature, layer) {
+          const material = feature.properties?.TYPE_OF_WA ?? "N/A";
+
+          // ✅ Popup مكبر ومعدل
+          layer.bindPopup(`
+            <b>Waste Container</b><br>
+            <b>Material:</b> ${material}
+          `, {
+            maxWidth: 320,
+            minWidth: 220,
+            className: 'custom-popup'
+          });
+
+          layer.on("click", function (e) {
+            layer.openPopup();
+            layer.setStyle({ radius: 8 });
+            setTimeout(() => layer.setStyle({ radius: 6 }), 500);
+          });
+        }
+      });
+
+      zonesLayer.addTo(map);
+      wasteContainersLayer.addTo(map);
+
+      // ✅ طبقات التحكم
+      L.control.layers({}, {
+        "Zones": zonesLayer,
+        "Waste Containers": wasteContainersLayer
+      }).addTo(map);
+    }).fail(function (jqxhr, textStatus, error) {
+      console.error("Error loading GeoJSON:", textStatus, error);
+      alert("⚠️ Error loading one of the GeoJSON files. Check console for details.");
+    });
+
+    // ✅ زر البيت (Home)
+    const home = L.control({ position: 'topleft' });
+    home.onAdd = () => {
+      const b = L.DomUtil.create('button', 'leaflet-bar');
+      b.textContent = '🏠';
+      b.style.background = 'white';
+      b.style.cursor = 'pointer';
+      b.title = 'Reset view';
+      b.onclick = () => map.setView([31.9045, 35.2045], 17.5);
+      return b;
+    };
+    home.addTo(map);
+
+    // ✅ المقياس (Scale)
+    L.control.scale({ metric: true, imperial: false }).addTo(map);
+  </script>
+</body>
+</html>
+
