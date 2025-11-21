@@ -1,473 +1,263 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Ramallah Flood Risk Checker</title>
+<meta charset="utf-8" />
+<title>Flood Hazard – Ramallah & Al-Bireh</title>
 
-  <!-- Leaflet CSS -->
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      font-family: "Segoe UI", Tahoma, sans-serif;
+<style>
+    body, html {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        font-family: Arial, sans-serif;
     }
-
     #map {
-      height: 100%;
-      width: 100%;
+        height: 100%;
+        width: 100%;
     }
 
-    /* أعلى يمين – زر تقرير الفيضان */
-    .flood-report-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      z-index: 1000;
-      background: #c62828;
-      color: #fff;
-      border: none;
-      padding: 8px 14px;
-      border-radius: 4px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.25);
-    }
-    .flood-report-btn:hover {
-      background: #b71c1c;
+    /* Side Identify box */
+    #infoBox {
+        position: absolute;
+        top: 90px;
+        right: 20px;
+        width: 320px;
+        max-height: 70%;
+        overflow-y: auto;
+        background: white;
+        padding: 15px;
+        border-radius: 7px;
+        box-shadow: 0 0 10px #888;
+        z-index: 9999;
+        display: none;
     }
 
-    /* صندوق إدخال الإحداثيات */
-    .coord-panel {
-      position: absolute;
-      bottom: 12px;
-      left: 12px;
-      z-index: 1000;
-      background: rgba(255,255,255,0.95);
-      padding: 8px 10px;
-      border-radius: 4px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.25);
-      font-size: 12px;
-    }
-    .coord-panel input {
-      width: 90px;
-      padding: 2px 4px;
-      margin: 2px 0;
-      font-size: 11px;
-    }
-    .coord-panel button {
-      margin-top: 4px;
-      padding: 3px 8px;
-      font-size: 11px;
-      border-radius: 3px;
-      border: none;
-      background: #1976d2;
-      color: #fff;
-      cursor: pointer;
-    }
-    .coord-panel button:hover {
-      background: #0d47a1;
+    /* Layers toggle */
+    #layerControl {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: white;
+        padding: 12px;
+        border-radius: 8px;
+        box-shadow: 0 0 8px #777;
+        z-index: 9999;
     }
 
-    /* الليجند */
-    .legend {
-      line-height: 1.4;
-    }
-    .legend-title {
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    .legend-section-title {
-      font-weight: 600;
-      margin-top: 4px;
-    }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      margin-bottom: 2px;
-      font-size: 11px;
-    }
-    .legend-color-box {
-      width: 12px;
-      height: 12px;
-      margin-right: 4px;
-      border: 1px solid #555;
+    /* Coordinate selector */
+    #coordBox {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        background: white;
+        padding: 12px;
+        border-radius: 8px;
+        box-shadow: 0 0 8px #777;
+        z-index: 9999;
     }
 
-    /* بطاقة نتائج Identify */
-    .identify-title {
-      font-weight: 600;
-      margin-bottom: 4px;
+    /* North arrow */
+    #northArrow {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        width: 70px;
     }
-    .identify-list {
-      padding-left: 18px;
-      margin: 0;
+
+    /* Flood report button */
+    #reportBtn {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        background: #d91c1c;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        z-index: 9999;
     }
-  </style>
+</style>
+
 </head>
-
 <body>
-  <button class="flood-report-btn" id="reportBtn">Send Flood Report</button>
-  <div id="map"></div>
 
-  <!-- إدخال إحداثيات يدوي -->
-  <div class="coord-panel">
-    <div><strong>Select by coordinates</strong></div>
-    <label>Lat:
-      <input type="number" step="0.00001" id="latInput" placeholder="31.9">
-    </label><br>
-    <label>Lng:
-      <input type="number" step="0.00001" id="lngInput" placeholder="35.20">
-    </label><br>
-    <button id="goToCoord">Go &amp; Check</button>
-  </div>
+<div id="map"></div>
 
-  <!-- Leaflet JS -->
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
+<img id="northArrow" src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/North_arrow.svg/1920px-North_arrow.svg.png">
 
-  <!-- leaflet-pip للبحث عن البوليجون الذي يحتوي النقطة -->
-  <script src="https://unpkg.com/leaflet-pip/leaflet-pip.min.js"></script>
+<div id="layerControl">
+    <h4>Layers</h4>
+    <label><input type="checkbox" id="floodLayerChk" checked> Flood Hazard</label><br>
+    <label><input type="checkbox" id="rainLayerChk" checked> Rainfall</label><br>
+    <label><input type="checkbox" id="slopeLayerChk" checked> Slope</label><br>
+    <label><input type="checkbox" id="soilLayerChk" checked> Soil</label><br>
+    <label><input type="checkbox" id="elevLayerChk" checked> Elevation</label><br>
+    <label><input type="checkbox" id="flowLayerChk" checked> Flow Accumulation</label><br>
+    <label><input type="checkbox" id="boundaryLayerChk" checked> Boundary</label><br>
+</div>
 
-  <script>
-    // ============================
-    // 1. إعداد الخريطة الأساسية
-    // ============================
+<div id="coordBox">
+    <h4>Select by Coordinates</h4>
+    Lat: <input id="latInput" type="number" step="0.0001"><br>
+    Lng: <input id="lngInput" type="number" step="0.0001"><br><br>
+    <button onclick="selectByCoords()">Go & Check</button>
+</div>
 
-    const map = L.map("map").setView([31.9, 35.2], 12); // وسط رام الله تقريبا
+<div id="infoBox"></div>
 
-    const osm = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+<div id="reportBtn" onclick="alert('Thank you. Your flood report has been submitted!')">
+    Send Flood Report
+</div>
 
-    // زر تحديد موقع المستخدم
-    map.locate({ setView: false, watch: false });
-    map.on("locationfound", (e) => {
-      L.circleMarker(e.latlng, {
-        radius: 4,
-        color: "#1565c0",
-        weight: 2,
-        fillColor: "#2196f3",
-        fillOpacity: 0.7
-      }).addTo(map).bindPopup("Your approximate location");
-    });
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-    // ============================
-    // 2. وظائف مساعدة للألوان والتصنيف
-    // ============================
+<script>
 
-    // تعيين لون حسب درجة الخطورة 1–5
-    function riskColorFlood(v) { // Flood main layer
-      return v === 5 ? "#b71c1c" :
-             v === 4 ? "#e53935" :
-             v === 3 ? "#fb8c00" :
-             v === 2 ? "#fdd835" :
-                       "#c5e1a5"; // 1
-    }
+// -------------------------------
+// 1) Initialize Map
+// -------------------------------
+var map = L.map('map').setView([31.9, 35.2], 11);
 
-    function riskColorRain(v) {
-      return v === 5 ? "#0d47a1" :
-             v === 4 ? "#1565c0" :
-             v === 3 ? "#1e88e5" :
-             v === 2 ? "#64b5f6" :
-                       "#bbdefb";
-    }
+// Basemap
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19
+}).addTo(map);
 
-    function riskColorSlope(v) {
-      return v === 5 ? "#4a148c" :
-             v === 4 ? "#6a1b9a" :
-             v === 3 ? "#8e24aa" :
-             v === 2 ? "#ce93d8" :
-                       "#f3e5f5";
-    }
-
-    function riskColorSoil(v) {
-      return v === 5 ? "#3e2723" :
-             v === 4 ? "#5d4037" :
-             v === 3 ? "#8d6e63" :
-             v === 2 ? "#bcaaa4" :
-                       "#d7ccc8";
-    }
-
-    function riskColorElev(v) {
-      return v === 5 ? "#263238" :
-             v === 4 ? "#455a64" :
-             v === 3 ? "#607d8b" :
-             v === 2 ? "#90a4ae" :
-                       "#cfd8dc";
-    }
-
-    function riskColorFlow(v) {
-      return v === 5 ? "#004d40" :
-             v === 4 ? "#00695c" :
-             v === 3 ? "#00897b" :
-             v === 2 ? "#4db6ac" :
-                       "#b2dfdb";
-    }
-
-    // استخراج قيمة الخطورة من خصائص الـ feature
-    function getRiskValue(props) {
-      return props.gridcode ||
-             props.Value ||
-             props.class ||
-             props.CLASS ||
-             props.risk ||
-             props.RISK ||
-             0;
-    }
-
-    // نص توصيف عام للخطورة
-    function riskLabel(v) {
-      if (v === 5) return "Very high risk";
-      if (v === 4) return "High risk";
-      if (v === 3) return "Moderate risk";
-      if (v === 2) return "Low risk";
-      if (v === 1) return "Very low / minimal risk";
-      return "No data";
-    }
-
-    // ============================
-    // 3. تحميل الطبقات
-    // ============================
-
-    let floodLayer, rainLayer, slopeLayer, soilLayer, elevLayer, flowLayer;
-    const overlays = {};
-
-    // Helper لتحميل طبقة GeoJSON
-    function loadLayer(url, styleFunc, outVarName) {
-      return fetch(url)
-        .then(r => r.json())
+// -------------------------------
+// Helper function – load any JSON
+// -------------------------------
+function loadLayer(url, style, onEach) {
+    return fetch(url)
+        .then(res => res.json())
         .then(data => {
-          const layer = L.geoJSON(data, {
-            style: function (feature) {
-              const v = getRiskValue(feature.properties);
-              return {
-                color: "#555",
-                weight: 0.4,
-                fillColor: styleFunc(v),
-                fillOpacity: 0.6
-              };
-            }
-          });
-          window[outVarName] = layer;
-          return layer;
-        })
-        .catch(err => {
-          console.error("Error loading", url, err);
-          return null;
+            return L.geoJSON(data, {style: style, onEachFeature: onEach});
         });
-    }
+}
 
-    Promise.all([
-      loadLayer("flood.json", riskColorFlood, "floodLayer"),
-      loadLayer("rain.json", riskColorRain, "rainLayer"),
-      loadLayer("slop.json", riskColorSlope, "slopeLayer"),
-      loadLayer("soil_new.json", riskColorSoil, "soilLayer"),
-      loadLayer("elev.json", riskColorElev, "elevLayer"),
-      loadLayer("flow_acu.json", riskColorFlow, "flowLayer")
-    ]).then(layers => {
-      // Flood layer رئيسية
-      if (floodLayer) {
-        floodLayer.addTo(map);
-        overlays["Flood hazard"] = floodLayer;
-      }
-      if (rainLayer) overlays["Rainfall"] = rainLayer;
-      if (slopeLayer) overlays["Slope"] = slopeLayer;
-      if (soilLayer) overlays["Soil"] = soilLayer;
-      if (elevLayer) overlays["Topography / Elevation"] = elevLayer;
-      if (flowLayer) overlays["Flow accumulation"] = flowLayer;
+// -------------------------------
+// Styles
+// -------------------------------
+const fiveClassColors = {
+    1: "#ffffcc",
+    2: "#ffeda0",
+    3: "#feb24c",
+    4: "#fc4e2a",
+    5: "#b10026"
+};
 
-      // Layer control
-      L.control.layers({ "OpenStreetMap": osm }, overlays, {
-        collapsed: false,
-        position: "topright"
-      }).addTo(map);
-
-      // بعد تحميل الطبقات، نفّعل identify
-      enableIdentify();
-    });
-
-    // ============================
-    // 4. Identify بالضغط / بالإحداثيات
-    // ============================
-
-    let identifyMarker = null;
-    let lastIdentifyLatLng = null;
-    let lastFloodRisk = null;
-
-    function buildIdentifyHTML(results) {
-      let html = '<div class="identify-title">Identify Results:</div><ul class="identify-list">';
-      html += `<li><strong>Rainfall:</strong> ${results.rain}</li>`;
-      html += `<li><strong>Slope:</strong> ${results.slope}</li>`;
-      html += `<li><strong>Soil:</strong> ${results.soil}</li>`;
-      html += `<li><strong>Topography:</strong> ${results.elev}</li>`;
-      html += `<li><strong>Flow accumulation:</strong> ${results.flow}</li>`;
-      html += `<li><strong>Hazard Zones:</strong> ${results.flood}</li>`;
-      html += "</ul>";
-      return html;
-    }
-
-    function describeLayerAtPoint(latlng, layer, type) {
-      if (!layer) return "No data";
-      const hits = leafletPip.pointInLayer(latlng, layer);
-      if (!hits || hits.length === 0) return "No feature here";
-
-      const feat = hits[0].feature || hits[0]; // leaflet-pip formats
-      const v = getRiskValue(feat.properties);
-      const base = riskLabel(v);
-
-      if (type === "soil") {
-        if (v === 4 || v === 5) {
-          return v + " – Alluvial / Colluvial or similar soils (highest flood risk: low infiltration)";
-        }
-        return v + " – " + base;
-      }
-      if (type === "flood") {
-        return v + " – " + base + " (overall flood hazard)";
-      }
-      return v + " – " + base;
-    }
-
-    function identifyAt(latlng) {
-      lastIdentifyLatLng = latlng;
-
-      const results = {
-        rain: describeLayerAtPoint(latlng, rainLayer, "rain"),
-        slope: describeLayerAtPoint(latlng, slopeLayer, "slope"),
-        soil: describeLayerAtPoint(latlng, soilLayer, "soil"),
-        elev: describeLayerAtPoint(latlng, elevLayer, "elev"),
-        flow: describeLayerAtPoint(latlng, flowLayer, "flow"),
-        flood: describeLayerAtPoint(latlng, floodLayer, "flood")
-      };
-
-      // استخرج درجة الخطر من طبقة الفلود لو وجدت
-      if (floodLayer) {
-        const hits = leafletPip.pointInLayer(latlng, floodLayer);
-        if (hits && hits.length > 0) {
-          const f = hits[0].feature || hits[0];
-          lastFloodRisk = getRiskValue(f.properties) || null;
-        } else {
-          lastFloodRisk = null;
-        }
-      }
-
-      if (identifyMarker) {
-        identifyMarker.setLatLng(latlng);
-      } else {
-        identifyMarker = L.marker(latlng, { draggable: false }).addTo(map);
-      }
-
-      identifyMarker.bindPopup(buildIdentifyHTML(results)).openPopup();
-    }
-
-    function enableIdentify() {
-      map.on("click", function (e) {
-        identifyAt(e.latlng);
-      });
-    }
-
-    // إدخال إحداثيات يدوي
-    document.getElementById("goToCoord").addEventListener("click", function () {
-      const lat = parseFloat(document.getElementById("latInput").value);
-      const lng = parseFloat(document.getElementById("lngInput").value);
-      if (isNaN(lat) || isNaN(lng)) {
-        alert("Please enter valid coordinates (lat & lng).");
-        return;
-      }
-      const ll = L.latLng(lat, lng);
-      map.setView(ll, 14);
-      identifyAt(ll);
-    });
-
-    // ============================
-    // 5. زر إرسال تقرير الفيضان
-    // ============================
-
-    document.getElementById("reportBtn").addEventListener("click", function () {
-      if (!lastIdentifyLatLng) {
-        alert("Click on the map (or use coordinates) first to choose a location.");
-        return;
-      }
-
-      const details = prompt(
-        "Describe the flood you observed (time, depth, damage, photos link, etc.):"
-      );
-      if (!details) return;
-
-      const lat = lastIdentifyLatLng.lat.toFixed(5);
-      const lng = lastIdentifyLatLng.lng.toFixed(5);
-      const riskText = lastFloodRisk ? riskLabel(lastFloodRisk) + " (class " + lastFloodRisk + ")" : "Unknown";
-
-      const body =
-        "Flood report from Ramallah Flood Checker\n\n" +
-        "Location (lat, lng): " + lat + ", " + lng + "\n" +
-        "Flood hazard class at this point: " + riskText + "\n\n" +
-        "User description:\n" + details + "\n";
-
-      // غيري الإيميل هنا لجهة الاختصاص
-      const email = "municipality@example.com";
-
-      const mailtoLink =
-        "mailto:" + encodeURIComponent(email) +
-        "?subject=" + encodeURIComponent("Flood report from web map") +
-        "&body=" + encodeURIComponent(body);
-
-      window.location.href = mailtoLink;
-    });
-
-    // ============================
-    // 6. الليجند (مفتاح الخريطة)
-    // ============================
-
-    const legend = L.control({ position: "bottomright" });
-
-    legend.onAdd = function () {
-      const div = L.DomUtil.create("div", "legend");
-      div.style.background = "rgba(255,255,255,0.95)";
-      div.style.padding = "6px 8px";
-      div.style.borderRadius = "4px";
-      div.style.boxShadow = "0 2px 4px rgba(0,0,0,0.3)";
-      div.style.fontSize = "11px";
-
-      div.innerHTML += '<div class="legend-title">Flood Risk Legend (1–5)</div>';
-      div.innerHTML += '<div style="margin-bottom:4px;">1 = Very low &nbsp;→&nbsp; 5 = Very high</div>';
-
-      function legendRow(color, label) {
-        return (
-          '<div class="legend-item">' +
-          '<span class="legend-color-box" style="background:' + color + '"></span>' +
-          label +
-          "</div>"
-        );
-      }
-
-      div.innerHTML += '<div class="legend-section-title">Flood hazard</div>';
-      div.innerHTML += legendRow(riskColorFlood(1), "Class 1 – very low");
-      div.innerHTML += legendRow(riskColorFlood(2), "Class 2 – low");
-      div.innerHTML += legendRow(riskColorFlood(3), "Class 3 – moderate");
-      div.innerHTML += legendRow(riskColorFlood(4), "Class 4 – high");
-      div.innerHTML += legendRow(riskColorFlood(5), "Class 5 – very high");
-
-      div.innerHTML += '<div class="legend-section-title">Other layers use the same classes:</div>';
-      div.innerHTML += '<div>Rainfall, Slope, Soil, Elevation, Flow accumulation all share 1–5 risk classes.</div>';
-
-      return div;
+// Color based on gridcode 1-5
+function styleFive(feature){
+    let v = feature.properties.gridcode;
+    return {
+        color: "#555",
+        weight: 0.6,
+        fillColor: fiveClassColors[v] || "#ccc",
+        fillOpacity: 0.6
     };
+}
 
-    legend.addTo(map);
-  </script>
+// Boundary style
+function boundaryStyle(){
+    return {
+        color: "#000",
+        weight: 2,
+        fillOpacity: 0
+    };
+}
+
+// -------------------------------
+// Identify popup + infoBox
+// -------------------------------
+function buildInfo(feature){
+    let p = feature.properties;
+    let txt = `<h3>${p.Name_Eng || "Location"}</h3>`;
+
+    if(p.gridcode) txt += `<b>Risk class:</b> ${p.gridcode}<br>`;
+    if(p.Population) txt += `<b>Population:</b> ${p.Population}<br>`;
+
+    return txt;
+}
+
+// -------------------------------
+// Load Layers
+// -------------------------------
+
+// IMPORTANT — ضعي روابط ال JSON الخاصة بك من GitHub RAW
+const urls = {
+    flood: "https://noorgis010.github.io/flood.json",
+    rain: "https://noorgis010.github.io/rain.json",
+    slope: "https://noorgis010.github.io/slop.json",
+    soil: "https://noorgis010.github.io/soil_new.json",
+    elev: "https://noorgis010.github.io/elev.json",
+    flow: "https://noorgis010.github.io/flow_acu.json",
+    boundary: "https://noorgis010.github.io/Ramallh_zones.json"
+};
+
+// Store layers
+var floodLayer, rainLayer, slopeLayer, soilLayer, elevLayer, flowLayer, boundaryLayer;
+
+// Load everything
+Promise.all([
+    loadLayer(urls.flood, styleFive, onEachIdentify).then(l => floodLayer = l.addTo(map)),
+    loadLayer(urls.rain, styleFive, onEachIdentify).then(l => rainLayer = l.addTo(map)),
+    loadLayer(urls.slope, styleFive, onEachIdentify).then(l => slopeLayer = l.addTo(map)),
+    loadLayer(urls.soil, styleFive, onEachIdentify).then(l => soilLayer = l.addTo(map)),
+    loadLayer(urls.elev, styleFive, onEachIdentify).then(l => elevLayer = l.addTo(map)),
+    loadLayer(urls.flow, styleFive, onEachIdentify).then(l => flowLayer = l.addTo(map)),
+    loadLayer(urls.boundary, boundaryStyle, onEachIdentify).then(l => boundaryLayer = l.addTo(map))
+]);
+
+// -------------------------------
+// On Each Feature (Identify)
+// -------------------------------
+function onEachIdentify(feature, layer){
+    layer.on("click", function(e){
+        let box = document.getElementById("infoBox");
+        box.innerHTML = buildInfo(feature);
+        box.style.display = "block";
+    });
+}
+
+// -------------------------------
+// Select by coordinates
+// -------------------------------
+function selectByCoords(){
+    let lat = parseFloat(document.getElementById("latInput").value);
+    let lng = parseFloat(document.getElementById("lngInput").value);
+
+    if(isNaN(lat) || isNaN(lng)){
+        alert("Please enter valid coordinates");
+        return;
+    }
+
+    let marker = L.marker([lat, lng]).addTo(map);
+    map.setView([lat, lng], 14);
+}
+
+// -------------------------------
+// Toggle layers
+// -------------------------------
+document.getElementById("floodLayerChk").onclick = ()=> toggleLayer(floodLayer);
+document.getElementById("rainLayerChk").onclick = ()=> toggleLayer(rainLayer);
+document.getElementById("slopeLayerChk").onclick = ()=> toggleLayer(slopeLayer);
+document.getElementById("soilLayerChk").onclick = ()=> toggleLayer(soilLayer);
+document.getElementById("elevLayerChk").onclick = ()=> toggleLayer(elevLayer);
+document.getElementById("flowLayerChk").onclick = ()=> toggleLayer(flowLayer);
+document.getElementById("boundaryLayerChk").onclick = ()=> toggleLayer(boundaryLayer);
+
+function toggleLayer(layer){
+    if(map.hasLayer(layer)) map.removeLayer(layer);
+    else layer.addTo(map);
+}
+
+</script>
+
 </body>
 </html>
 
