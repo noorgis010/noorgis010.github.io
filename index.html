@@ -2,13 +2,13 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <title>نظام أخطار الفيضانات-محافظة رام الله والبيره</title>
+  <title>نظام أخطار الفيضانات - رام الله</title>
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
-  <!-- Turf.js لتحليل النقاط داخل الطبقات -->
+  <!-- Turf -->
   <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
   <style>
@@ -17,11 +17,11 @@
       padding: 0;
       height: 100%;
       overflow: hidden;
-      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      font-family: "Segoe UI", Tahoma, Arial;
     }
 
     #sidebar {
-      width: 280px;
+      width: 220px;
       height: 100%;
       background: #fff;
       position: absolute;
@@ -38,24 +38,32 @@
       top: 0;
       bottom: 0;
       left: 0;
-      right: 280px;
+      right: 220px;
     }
 
     .legend {
       background: white;
-      padding: 8px;
-      font-size: 12px;
-      border-radius: 6px;
-      box-shadow: 0 0 6px rgba(0,0,0,0.3);
-      line-height: 18px;
+      padding: 12px;
+      font-size: 14px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      line-height: 20px;
     }
 
     .legend i {
-      width: 14px;
-      height: 14px;
+      width: 18px;
+      height: 18px;
       float: left;
-      margin-right: 5px;
-      opacity: 0.8;
+      margin-right: 8px;
+      opacity: 0.9;
+    }
+
+    .north-arrow {
+      padding: 5px;
+      background: white;
+      width: 60px;
+      border-radius: 8px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.3);
     }
   </style>
 </head>
@@ -63,12 +71,9 @@
 <body>
 
 <div id="sidebar">
-  <h2 style="text-align:center;">نظام أخطار الفيضانات</h2>
-
+  <h3 style="text-align:center;">نظام أخطار الفيضانات</h3>
   <h4>تقرير موقع المستخدم:</h4>
-  <div id="userReport">
-    جارٍ انتظار تحديد موقعك...
-  </div>
+  <div id="userReport">جارٍ انتظار تحديد موقعك...</div>
 </div>
 
 <div id="map"></div>
@@ -76,7 +81,7 @@
 <script>
 
 // --------------------------------------------
-// 1) دالة ألوان مستويات الخطر 1–5
+// 1) ألوان مستويات الخطر حسب gridcode
 // --------------------------------------------
 function hazardColor(level) {
   level = Number(level);
@@ -98,14 +103,11 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 // --------------------------------------------
-// 3) طبقة المستخدم
+// 3) موقع المستخدم
 // --------------------------------------------
-var userLocation = null;
-
 map.locate({ setView: true, maxZoom: 14 });
 
 map.on("locationfound", function(e) {
-  userLocation = e.latlng;
   L.marker(e.latlng).addTo(map).bindPopup("موقعك الحالي").openPopup();
   document.getElementById("userReport").innerHTML = "تم تحديد موقعك بنجاح.";
 });
@@ -116,27 +118,12 @@ map.on("locationerror", function() {
 });
 
 // --------------------------------------------
-// 4) دوال Popup
+// 4) Popup الأصلي للطبقات
 // --------------------------------------------
-
-// Popup عام لكل الطبقات ما عدا التربة
 function popupGeneric(feature, layer) {
   let p = feature.properties;
   let html = "<b>بيانات الطبقة:</b><br>";
-  for (let key in p) {
-    html += `<b>${key}:</b> ${p[key]}<br>`;
-  }
-  layer.bindPopup(html);
-}
-
-// Popup خاص لطبقة التربة
-function popupSoil(feature, layer) {
-  let p = feature.properties;
-  let html = `
-    <b>معلومات التربة</b><br>
-    <b>DIS:</b> ${p.DIS}<br>
-    <b>RiskSoil:</b> ${p.RiskSoil}<br>
-  `;
+  for (let k in p) html += `<b>${k}:</b> ${p[k]}<br>`;
   layer.bindPopup(html);
 }
 
@@ -145,15 +132,7 @@ function popupSoil(feature, layer) {
 // --------------------------------------------
 function styleByGridCode(feature) {
   return {
-    color: hazardColor(feature.properties.GridCode),
-    weight: 1.5,
-    fillOpacity: 0.45
-  };
-}
-
-function styleSoil(feature) {
-  return {
-    color: hazardColor(feature.properties.RiskSoil),
+    color: hazardColor(feature.properties.gridcode),
     weight: 1.5,
     fillOpacity: 0.45
   };
@@ -166,19 +145,6 @@ var layersControl = L.control.layers(null, {}, { collapsed: false }).addTo(map);
 
 var floodLayer, zonesLayer, elevLayer, rainLayer, slopeLayer, soilLayer, flowLayer;
 
-// Flood (الأساسية)
-fetch("flood.json")
-  .then(r => r.json())
-  .then(data => {
-    floodLayer = L.geoJSON(data, {
-      style: styleByGridCode,
-      onEachFeature: popupGeneric
-    }).addTo(map);
-
-    layersControl.addOverlay(floodLayer, "Flood (أساس)");
-  });
-
-// باقي الطبقات
 function loadLayer(file, styleFunc, popupFunc, label, assignTo) {
   fetch(file)
     .then(r => r.json())
@@ -192,17 +158,24 @@ function loadLayer(file, styleFunc, popupFunc, label, assignTo) {
     });
 }
 
+// Flood الأساس
+loadLayer("flood.json", styleByGridCode, popupGeneric, "Flood (أساس)", "floodLayer");
+
+// باقي الطبقات
 loadLayer("Ramallh_zones.json", styleByGridCode, popupGeneric, "Zones", "zonesLayer");
 loadLayer("elev.json", styleByGridCode, popupGeneric, "Elevation", "elevLayer");
 loadLayer("rain.json", styleByGridCode, popupGeneric, "Rainfall", "rainLayer");
 loadLayer("slop.json", styleByGridCode, popupGeneric, "Slope", "slopeLayer");
 loadLayer("flow_acu.json", styleByGridCode, popupGeneric, "Flow Accumulation", "flowLayer");
-loadLayer("soil_new.json", styleSoil, popupSoil, "Soil (DIS + RiskSoil)", "soilLayer");
+loadLayer("soil_new.json", styleByGridCode, popupGeneric, "Soil", "soilLayer");
 
 // --------------------------------------------
-// 7) Identify عند الضغط على الخريطة
+// 7) Identify الذكي — فقط عند الضغط على منطقة فارغة
 // --------------------------------------------
 map.on("click", function(e) {
+
+  if (e.originalEvent.target.classList.contains("leaflet-interactive")) return;
+
   let lat = e.latlng.lat.toFixed(6);
   let lng = e.latlng.lng.toFixed(6);
 
@@ -229,19 +202,19 @@ map.on("click", function(e) {
 
   let html = `<b>إحداثيات الموقع:</b><br>Lat: ${lat}<br>Lng: ${lng}<hr>`;
 
-  if (info.Flood) html += `<b>الفيضانات:</b> خطر ${info.Flood.GridCode}<br>`;
-  if (info.Elevation) html += `<b>الارتفاع:</b> ${info.Elevation.GridCode}<br>`;
-  if (info.Slope) html += `<b>الانحدار:</b> ${info.Slope.GridCode}<br>`;
-  if (info.Rainfall) html += `<b>المطر:</b> ${info.Rainfall.GridCode}<br>`;
-  if (info.Zones) html += `<b>المنطقة:</b> ${info.Zones.GridCode}<br>`;
-  if (info.Flow) html += `<b>تراكم الجريان:</b> ${info.Flow.GridCode}<br>`;
-  if (info.Soil) html += `<b>التربة:</b><br>DIS: ${info.Soil.DIS}<br>RiskSoil: ${info.Soil.RiskSoil}<br>`;
+  if (info.Flood) html += `<b>الفيضانات:</b> خطر ${info.Flood.gridcode}<br>`;
+  if (info.Elevation) html += `<b>الارتفاع:</b> ${info.Elevation.gridcode}<br>`;
+  if (info.Slope) html += `<b>الانحدار:</b> ${info.Slope.gridcode}<br>`;
+  if (info.Rainfall) html += `<b>المطر:</b> ${info.Rainfall.gridcode}<br>`;
+  if (info.Zones) html += `<b>المنطقة:</b> ${info.Zones.gridcode}<br>`;
+  if (info.Flow) html += `<b>تراكم الجريان:</b> ${info.Flow.gridcode}<br>`;
+  if (info.Soil) html += `<b>التربة:</b> خطر ${info.Soil.gridcode}<br>`;
 
   L.popup().setLatLng(e.latlng).setContent(html).openOn(map);
 });
 
 // --------------------------------------------
-// 8) Legend
+// 8) Legend كبير وواضح
 // --------------------------------------------
 var legend = L.control({ position: "bottomleft" });
 
@@ -264,8 +237,8 @@ legend.addTo(map);
 var north = L.control({ position: "topright" });
 
 north.onAdd = function() {
-  var div = L.DomUtil.create("div", "");
-  div.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/54/54248.png" width="50">';
+  var div = L.DomUtil.create("div", "north-arrow");
+  div.innerHTML = '<img src="https://upload.wikimedia.org/wikipedia/commons/e/ed/North_arrow.svg" width="50">';
   return div;
 };
 
@@ -275,8 +248,3 @@ north.addTo(map);
 
 </body>
 </html>
-
-
-
-
-
