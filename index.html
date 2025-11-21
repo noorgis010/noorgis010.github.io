@@ -2,14 +2,12 @@
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <title>نظام أخطار الفيضانات - رام الله</title>
+  <title>نظام أخطار الفيضانات - محافظة رام الله والبيره</title>
 
   <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Turf.js للتحليل المكاني -->
-  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
   <style>
     html, body {
@@ -17,299 +15,162 @@
       padding: 0;
       height: 100%;
       width: 100%;
+      overflow: hidden;
       font-family: "Segoe UI", Tahoma, Arial, sans-serif;
-      background: #f5f5f5;
+      background: #eee;
+    }
+
+    #sidebar {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 280px;
+      height: 100%;
+      background: #fff;
+      padding: 10px;
+      box-shadow: -2px 0 5px rgba(0,0,0,0.2);
+      z-index: 1000;
+      overflow-y: auto;
     }
 
     #map {
       position: absolute;
       top: 0;
       bottom: 0;
-      right: 0;
-      left: 300px; /* مساحة للسايدبار */
-      z-index: 1;
+      left: 0;
+      right: 280px;
     }
 
-    /* الشريط الجانبي */
-    #sidebar {
-      position: absolute;
-      top: 0;
-      bottom: 0;
-      right: 0;
-      width: 300px;
-      background: #ffffff;
-      box-shadow: 0 0 8px rgba(0,0,0,0.3);
-      padding: 10px 12px;
-      z-index: 1000;
-      overflow-y: auto;
-    }
-
-    #sidebar h2 {
-      margin-top: 0;
-      font-size: 18px;
-      text-align: center;
-    }
-
-    #sidebar h3 {
-      font-size: 16px;
-      margin-bottom: 6px;
-      margin-top: 14px;
-    }
-
-    #risk-report, #analysis-summary {
-      background: #f0f4ff;
-      border-radius: 6px;
+    .legend-box {
+      background: #fff;
       padding: 8px;
-      font-size: 13px;
-      white-space: pre-line;
-    }
-
-    label, select, button {
-      font-size: 13px;
-    }
-
-    #analysis-layer {
-      width: 100%;
-      margin: 4px 0;
-      padding: 4px;
-    }
-
-    #run-analysis {
-      width: 100%;
-      padding: 6px;
-      margin-top: 4px;
-      background: #007bff;
-      color: #fff;
-      border: none;
       border-radius: 6px;
-      cursor: pointer;
-    }
-
-    #run-analysis:hover {
-      background: #0056b3;
-    }
-
-    /* زر التبليغ */
-    #report-btn {
-      width: 100%;
-      padding: 6px;
-      margin-top: 8px;
-      background: #d9534f;
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    #report-btn:hover {
-      background: #b52b27;
-    }
-
-    /* Legend */
-    .info.legend {
-      background: #ffffff;
-      padding: 8px;
-      border-radius: 8px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.3);
-      line-height: 18px;
       font-size: 12px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.3);
+      line-height: 18px;
     }
 
-    .info.legend h4 {
-      margin: 0 0 4px 0;
-      font-size: 13px;
-      text-align: center;
-    }
-
-    .info.legend i {
+    .legend-box i {
       width: 14px;
       height: 14px;
       float: left;
-      margin-right: 4px;
-      margin-top: 2px;
+      margin-right: 5px;
       opacity: 0.8;
-    }
-
-    /* إشارة الشمال */
-    .north-arrow {
-      width: 50px;
-    }
-
-    /* عشان ما يتفاعل المستخدم مع أزرار الكنترول مع الماب */
-    .leaflet-control-container button {
-      font-family: inherit;
     }
   </style>
 </head>
+
 <body>
 
 <div id="sidebar">
-  <h2>نظام أخطار الفيضانات</h2>
+  <h3>نظام أخطار الفيضانات</h3>
+  <p>هذه النسخة الأساسية المضمونة قبل إضافة التحليل.</p>
 
-  <h3>تقرير موقع المستخدم</h3>
-  <div id="risk-report">
+  <h4>تقرير موقع المستخدم:</h4>
+  <div id="report">
     جارٍ انتظار تحديد موقعك...
   </div>
-
-  <h3>تحليل التداخل مع الفيضانات</h3>
-  <label for="analysis-layer">اختر طبقة لتحليل تداخلها مع طبقة الفيضانات:</label>
-  <select id="analysis-layer">
-    <option value="">-- اختر طبقة --</option>
-  </select>
-  <button id="run-analysis">تحليل التداخل مع الفيضانات</button>
-
-  <div id="analysis-summary" style="margin-top:6px;">
-    لم يتم إجراء أي تحليل بعد.
-  </div>
-
-  <h3>التبليغ عن خطر</h3>
-  <button id="report-btn">📢 إرسال بلاغ عبر البريد الإلكتروني</button>
-  <p style="font-size:11px; color:#666; margin-top:4px;">
-    * عدّلي عنوان البريد في الكود للجهة المختصة (بلدية، دفاع مدني، وزارة).
-  </p>
 </div>
 
 <div id="map"></div>
 
 <script>
-  // ==============================
-  // 1) إعداد الخريطة وطبقة الأساس
-  // ==============================
-  var map = L.map('map').setView([31.9, 35.2], 12);
+// ----------------------------
+// 1) إعداد الخريطة
+// ----------------------------
+var map = L.map('map').setView([31.9, 35.2], 12);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; OpenStreetMap'
-  }).addTo(map);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19
+}).addTo(map);
 
-  // ==========================
-  // 2) المتغيرات العامة
-  // ==========================
-  var currentUserLocation = null;    // LatLng لموقع المستخدم
-  var floodGeoJSON = null;          // GeoJSON لطبقة الفيضانات
-  var floodLayer = null;            // Leaflet layer لطبقة الفيضانات
-  var intersectionLayer = null;     // Layer ناتج التداخل
-  var overlays = {};                // لأداة التحكم بالطبقات
-  var loadedLayers = {};            // لتخزين geojson + leaflet layer لكل طبقة
-  var layersControl = L.control.layers(null, overlays, {collapsed: true}).addTo(map);
+// ----------------------------
+// 2) تحديد موقع المستخدم
+// ----------------------------
+map.locate({ setView: true, maxZoom: 14 });
 
-  var riskReportDiv = document.getElementById("risk-report");
-  var analysisSelect = document.getElementById("analysis-layer");
-  var analysisSummaryDiv = document.getElementById("analysis-summary");
-  var reportBtn = document.getElementById("report-btn");
+map.on("locationfound", function(e) {
+  L.marker(e.latlng).addTo(map)
+    .bindPopup("موقعك الحالي").openPopup();
 
-  // ===================================
-  // 3) طلب موقع المستخدم (Geolocation)
-  // ===================================
-  map.locate({ setView: true, maxZoom: 15 });
+  document.getElementById("report").innerHTML =
+    "تم تحديد موقعك بنجاح.";
+});
 
-  map.on('locationfound', function(e) {
-    currentUserLocation = e.latlng;
+map.on("locationerror", function() {
+  document.getElementById("report").innerHTML =
+    "تعذّر الوصول لموقعك.";
+});
 
-    L.marker(e.latlng).addTo(map)
-      .bindPopup("موقعك الحالي").openPopup();
+// ----------------------------
+// 3) تحميل طبقة الفيضانات
+// ----------------------------
+var floodLayer = null;
 
-    // تحديث تقرير أخطار الفيضانات عندما تتوفر بيانات الفيضانات
-    if (floodGeoJSON) {
-      updateFloodRiskReport();
-    } else {
-      riskReportDiv.textContent =
-        "تم تحديد موقعك، جارٍ تحميل طبقة الفيضانات لحساب مستوى الخطر...";
-    }
-  });
+fetch("flood.json")
+  .then(res => res.json())
+  .then(data => {
+    floodLayer = L.geoJSON(data, {
+      style: { color: "red", weight: 2, fillOpacity: 0.35 }
+    }).addTo(map);
+  })
+  .catch(err => console.log("flood error", err));
 
-  map.on('locationerror', function() {
-    riskReportDiv.textContent =
-      "المتصفح منع الوصول إلى موقعك. يمكنك استخدام الخريطة يدويًا بدون تقرير آلي.";
-  });
+// ----------------------------
+// 4) تحميل باقي الطبقات
+// ----------------------------
+function loadLayer(file, label, color) {
+  fetch(file)
+    .then(res => res.json())
+    .then(data => {
+      L.geoJSON(data, {
+        style: { color: color, weight: 2, fillOpacity: 0.25 }
+      }).addTo(map);
+    })
+    .catch(err => console.log(label + " error", err));
+}
 
-  // ===============================
-  // 4) تحميل طبقة الفيضانات أساسًا
-  // ===============================
-  function loadFloodLayer() {
-    return fetch("flood.json")
-      .then(res => res.json())
-      .then(data => {
-        floodGeoJSON = data;
+loadLayer("Ramallh_zones.json", "Zones", "blue");
+loadLayer("elev.json", "Elevation", "brown");
+loadLayer("rain.json", "Rainfall", "cyan");
+loadLayer("slop.json", "Slope", "orange");
+loadLayer("soil_new.json", "Soil", "purple");
+loadLayer("flow_acu.json", "Flow ACU", "green");
 
-        floodLayer = L.geoJSON(data, {
-          style: { color: "red", weight: 2, fillOpacity: 0.35 }
-        }).addTo(map);
+// ----------------------------
+// 5) أسهل ليجند ممكن
+// ----------------------------
+var legend = L.control({position: 'bottomleft'});
 
-        overlays["مناطق الفيضانات"] = floodLayer;
-        layersControl.addOverlay(floodLayer, "مناطق الفيضانات");
+legend.onAdd = function(map) {
+  var div = L.DomUtil.create('div', 'legend-box');
+  div.innerHTML += '<i style="background:red"></i> فيضانات<br>';
+  div.innerHTML += '<i style="background:blue"></i> Zones<br>';
+  div.innerHTML += '<i style="background:brown"></i> Elevation<br>';
+  div.innerHTML += '<i style="background:cyan"></i> Rainfall<br>';
+  div.innerHTML += '<i style="background:orange"></i> Slope<br>';
+  div.innerHTML += '<i style="background:purple"></i> Soil<br>';
+  div.innerHTML += '<i style="background:green"></i> Flow Acc.<br>';
+  return div;
+};
+legend.addTo(map);
 
-        if (currentUserLocation) {
-          updateFloodRiskReport();
-        } else {
-          riskReportDiv.textContent =
-            "تم تحميل طبقة الفيضانات. جارٍ انتظار تحديد موقعك من المتصفح...";
-        }
-      })
-      .catch(err => {
-        console.error("خطأ في تحميل flood.json", err);
-        riskReportDiv.textContent = "تعذر تحميل طبقة الفيضانات.";
-      });
-  }
+// ----------------------------
+// 6) إشارة الشمال
+// ----------------------------
+var north = L.control({position: "topright"});
+north.onAdd = function(map) {
+  var div = L.DomUtil.create("div", "");
+  div.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/54/54248.png" width="50"/>';
+  return div;
+};
+north.addTo(map);
 
-  // ===============================
-  // 5) تحميل باقي الطبقات
-  // ===============================
-  var layerConfigs = [
-    { key: "zones",     file: "Ramallh_zones.json", label: "المناطق (Zones)",       color: "blue"   },
-    { key: "elev",      file: "elev.json",          label: "الارتفاعات (Elevation)", color: "brown"  },
-    { key: "rain",      file: "rain.json",          label: "الأمطار (Rainfall)",     color: "cyan"   },
-    { key: "slope",     file: "slop.json",          label: "الانحدار (Slope)",       color: "orange" },
-    { key: "soil",      file: "soil_new.json",      label: "التربة (Soil Type)",     color: "purple" },
-    { key: "flow_acu",  file: "flow_acu.json",      label: "تراكم الجريان (Flow Acc.)", color: "green" }
-    // إذا بدك تضيفي wasteContainer.json ضيفي سطر جديد هنا
-  ];
+</script>
 
-  function loadOtherLayers() {
-    layerConfigs.forEach(function(cfg) {
-      fetch(cfg.file)
-        .then(res => res.json())
-        .then(data => {
-          var lyr = L.geoJSON(data, {
-            style: { color: cfg.color, weight: 2, fillOpacity: 0.25 },
-            onEachFeature: function(feature, layer) {
-              // Popup بسيط يعرض كل الخصائص
-              var props = feature.properties || {};
-              var html = "<b>" + cfg.label + "</b><br>";
-              for (var k in props) {
-                html += "<b>" + k + ":</b> " + props[k] + "<br>";
-              }
-              layer.bindPopup(html);
-            }
-          });
+</body>
+</html>
 
-          overlays[cfg.label] = lyr;
-          layersControl.addOverlay(lyr, cfg.label);
-
-          loadedLayers[cfg.key] = {
-            label: cfg.label,
-            geojson: data,
-            layer: lyr,
-            color: cfg.color
-          };
-
-          // إضافة الطبقة لقائمة الاختيار للتحليل (باستثناء الفيضانات لأنها الأساس)
-          var option = document.createElement("option");
-          option.value = cfg.key;
-          option.textContent = cfg.label;
-          analysisSelect.appendChild(option);
-        })
-        .catch(err => {
-          console.error("خطأ في تحميل " + cfg.file, err);
-        });
-    });
-  }
-
-  // ======================================
-  // 6) تحديث تقرير أخطار الفيضانات
-  // ======================================
-  function updateFloodRiskReport() {
-    if (!currentUserLocation || !floo
 
 
 
