@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="utf-8" />
-  <title>Flood Hazard – Ramallah</title>
+  <title>Flood Hazard System – Ramallah & Al-Bireh Governorate</title>
 
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -20,9 +20,9 @@
       font-family: "Segoe UI", Tahoma, Arial, sans-serif;
     }
 
-    /* الشريط الجانبي */
+    /* Sidebar */
     #sidebar {
-      width: 170px;
+      width: 220px;
       height: 100%;
       background: #ffffff;
       position: absolute;
@@ -40,7 +40,7 @@
       top: 0;
       bottom: 0;
       left: 0;
-      right: 170px;
+      right: 220px;
     }
 
     #sidebar h3 {
@@ -55,7 +55,7 @@
       font-size: 12px;
     }
 
-    #btnHighlight, #btnReport {
+    #btnHighlight, #btnReport, #btnBuffer {
       width: 100%;
       margin-top: 5px;
       padding: 5px;
@@ -83,21 +83,30 @@
       background: #b52b27;
     }
 
+    #btnBuffer {
+      background: #28a745;
+      color: white;
+    }
+
+    #btnBuffer:hover {
+      background: #1d7d32;
+    }
+
     .legend {
       background: white;
       padding: 15px;
-      font-size: 16px;
+      font-size: 14px;
       border-radius: 10px;
       box-shadow: 0 0 12px rgba(0,0,0,0.3);
-      line-height: 24px;
+      line-height: 22px;
       width: 190px;
     }
 
     .legend i {
-      width: 22px;
-      height: 22px;
+      width: 18px;
+      height: 18px;
       float: left;
-      margin-right: 10px;
+      margin-right: 8px;
       opacity: 1;
     }
 
@@ -110,7 +119,22 @@
 
     .small-text {
       font-size: 10px;
-      color: #666;
+      color: #555;
+    }
+
+    #bufferDistance {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 3px;
+      margin-top: 2px;
+      margin-bottom: 3px;
+      font-size: 11px;
+    }
+
+    #bufferReport {
+      margin-top: 4px;
+      border-top: 1px solid #ddd;
+      padding-top: 4px;
     }
   </style>
 </head>
@@ -118,7 +142,7 @@
 <body>
 
 <div id="sidebar">
-  <h3>Flood Hazard</h3>
+  <h3>Flood Hazard System<br>Ramallah & Al-Bireh Governorate</h3>
 
   <h4>User location</h4>
   <div id="userReport">Waiting for your location…</div>
@@ -127,10 +151,18 @@
   <button id="btnHighlight">Highlight Extreme Flood Risk</button>
   <button id="btnReport">Send Flood Emergency Report</button>
 
+  <h4>Buffer tool</h4>
+  <div class="small-text">
+    Distance (meters):
+  </div>
+  <input id="bufferDistance" type="number" min="10" value="500" />
+  <button id="btnBuffer">Create Buffer & Analyse</button>
+  <div id="bufferReport" class="small-text"></div>
+
   <h4>Layers info</h4>
   <div class="small-text">
-    <b>Flood:</b> final flood hazard (1–5).<br>
-    <b>Rainfall:</b> rainfall classes.<br>
+    <b>Flood:</b> final flood hazard (levels 1–5).<br>
+    <b>Rainfall:</b> 10 rainfall classes (1 = very low, 10 = very high).<br>
     <b>Elevation:</b> height classes.<br>
     <b>Slope:</b> slope classes.<br>
     <b>Flow Acc:</b> flow accumulation.<br>
@@ -139,28 +171,51 @@
   </div>
 
   <p class="small-text">
-    Tip: click on polygons to see full attributes, or click on empty area to get
-    a combined hazard report.
+    Tip: click on polygons to see full attributes, or click on any location  
+    (empty area or polygon) to get a combined hazard report.
   </p>
+
+  <h4>Rainfall legend (text)</h4>
+  <div class="small-text">
+    1–3: very low rainfall<br>
+    4–6: medium rainfall<br>
+    7–8: high rainfall<br>
+    9–10: very high rainfall
+  </div>
 </div>
 
 <div id="map"></div>
 
 <script>
-// =========================
-// 1) Hazard color function
-// =========================
-function hazardColor(level) {
+// =====================================================
+// 1) Color functions
+// =====================================================
+function floodColor(level) {
   level = Number(level);
-  return level === 1 ? "#00cc44" :   // green
-         level === 2 ? "#ffff33" :   // yellow
-         level === 3 ? "#ff9933" :   // orange
-         level === 4 ? "#ff3300" :   // red
-         level === 5 ? "#990000" :   // dark red
-         "#555555";                  // unknown
+  return level === 1 ? "#00cc44" :
+         level === 2 ? "#ffff33" :
+         level === 3 ? "#ff9933" :
+         level === 4 ? "#ff3300" :
+         level === 5 ? "#990000" :
+         "#555555";
 }
 
-// توصية نصية حسب مستوى الخطر
+function rainfallColor(level) {
+  level = Number(level);
+  return level === 1 ? "#f7fbff" :
+         level === 2 ? "#deebf7" :
+         level === 3 ? "#c6dbef" :
+         level === 4 ? "#9ecae1" :
+         level === 5 ? "#6baed6" :
+         level === 6 ? "#4292c6" :
+         level === 7 ? "#2171b5" :
+         level === 8 ? "#08519c" :
+         level === 9 ? "#08306b" :
+         level === 10 ? "#041f3d" :
+         "#999999";
+}
+
+// توصية حسب مستوى خطر الفيضان
 function riskMessage(level) {
   level = Number(level);
   switch (level) {
@@ -169,23 +224,23 @@ function riskMessage(level) {
     case 3: return "Moderate Risk – Flooding may occur; take precautions.";
     case 4: return "High Risk – Flooding likely. Avoid staying in this area.";
     case 5: return "Extreme Risk – Dangerous flood area. Evacuation recommended.";
-    default: return "Unknown hazard level.";
+    default: return "Unknown flood hazard level.";
   }
 }
 
-// =========================
+// =====================================================
 // 2) Map + base layer
-// =========================
+// =====================================================
 var map = L.map("map").setView([31.9, 35.2], 12);
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19
 }).addTo(map);
 
-// =========================
+// =====================================================
 // 3) User location
-// =========================
-var lastAnalysis = null;      // نخزن آخر نقطة تحليل
+// =====================================================
+var lastAnalysis = null;      // store last analysed point
 var userReportDiv = document.getElementById("userReport");
 
 map.locate({ setView: true, maxZoom: 14 });
@@ -199,9 +254,9 @@ map.on("locationerror", function() {
   userReportDiv.textContent = "Browser blocked access to your location.";
 });
 
-// =========================
-// 4) Layer popups + styles
-// =========================
+// =====================================================
+// 4) Popup + styles
+// =====================================================
 function popupGeneric(feature, layer) {
   let p = feature.properties;
   let html = "<b>Layer attributes:</b><br>";
@@ -209,22 +264,39 @@ function popupGeneric(feature, layer) {
   layer.bindPopup(html);
 }
 
-function styleByGridcode(feature) {
+function styleFlood(feature) {
   return {
-    color: hazardColor(feature.properties.gridcode),
-    weight: 1.5,
-    fillOpacity: 0.45
+    color: floodColor(feature.properties.gridcode),
+    weight: 1.0,
+    fillOpacity: 0.55
   };
 }
 
-// =========================
+// طبقات ثانوية: فقط حدود خفيفة
+function styleLight(feature) {
+  return {
+    color: "#666666",
+    weight: 0.3,
+    fillOpacity: 0.0
+  };
+}
+
+// طبقة الأمطار 10 مستويات
+function styleRain(feature) {
+  return {
+    color: rainfallColor(feature.properties.gridcode),
+    weight: 0.5,
+    fillOpacity: 0.6
+  };
+}
+
+// =====================================================
 // 5) Load layers
-// =========================
+// =====================================================
 var layersControl = L.control.layers(null, {}, { collapsed: false }).addTo(map);
 
 var floodLayer, zonesLayer, elevLayer, rainLayer, slopeLayer, soilLayer, flowLayer;
-var floodSafePoints = null;        // centroids of low-risk areas
-var highlightLayer = null;
+var floodSafePoints = null;        // centroids of low-risk areas (1–2)
 
 function loadLayer(file, styleFunc, popupFunc, label, assignTo) {
   fetch(file)
@@ -237,7 +309,7 @@ function loadLayer(file, styleFunc, popupFunc, label, assignTo) {
 
       layersControl.addOverlay(window[assignTo], label);
 
-      // إذا كانت طبقة الفيضانات، نحضّر نقاط المناطق الآمنة (gridcode 1–2)
+      // special: flood safe points
       if (assignTo === "floodLayer") {
         var safeFeatures = [];
         data.features.forEach(function(feat) {
@@ -253,31 +325,34 @@ function loadLayer(file, styleFunc, popupFunc, label, assignTo) {
     });
 }
 
-// Flood أساس
-loadLayer("flood.json", styleByGridcode, popupGeneric, "Flood (base)", "floodLayer");
+// Flood base
+loadLayer("flood.json", styleFlood, popupGeneric, "Flood (base)", "floodLayer");
 
-// باقي الطبقات
-loadLayer("Ramallh_zones.json", styleByGridcode, popupGeneric, "Zones", "zonesLayer");
-loadLayer("elev.json",          styleByGridcode, popupGeneric, "Elevation", "elevLayer");
-loadLayer("rain.json",          styleByGridcode, popupGeneric, "Rainfall", "rainLayer");
-loadLayer("slop.json",          styleByGridcode, popupGeneric, "Slope", "slopeLayer");
-loadLayer("flow_acu.json",      styleByGridcode, popupGeneric, "Flow Accumulation", "flowLayer");
-loadLayer("soil_new.json",      styleByGridcode, popupGeneric, "Soil", "soilLayer");
+// Others
+loadLayer("Ramallh_zones.json", styleLight, popupGeneric, "Zones", "zonesLayer");
+loadLayer("elev.json",          styleLight, popupGeneric, "Elevation", "elevLayer");
+loadLayer("rain.json",          styleRain,  popupGeneric, "Rainfall (10 classes)", "rainLayer");
+loadLayer("slop.json",          styleLight, popupGeneric, "Slope", "slopeLayer");
+loadLayer("flow_acu.json",      styleLight, popupGeneric, "Flow Accumulation", "flowLayer");
+loadLayer("soil_new.json",      styleLight, popupGeneric, "Soil", "soilLayer");
 
-// =========================
-// 6) Identify on empty map
-// =========================
-map.on("click", function(e) {
-  // لو النقر على بوليغون (leaflet-interactive) → خليه للـ popup الأصلي
-  if (e.originalEvent.target.classList.contains("leaflet-interactive")) return;
+// =====================================================
+// 6) Identify + Buffer mode
+// =====================================================
+var bufferMode = false;
+var bufferLayer = null;
 
+function analysePoint(e) {
   if (!floodLayer) {
     alert("Flood layer not loaded yet.");
     return;
   }
 
-  var lat = e.latlng.lat.toFixed(6);
-  var lng = e.latlng.lng.toFixed(6);
+  var lat = e.latlng.lat;
+  var lng = e.latlng.lng;
+  var latFixed = lat.toFixed(6);
+  var lngFixed = lng.toFixed(6);
+
   var point = turf.point([lng, lat]);
   var info = {};
 
@@ -300,27 +375,30 @@ map.on("click", function(e) {
   search(soilLayer, "Soil");
 
   var html = "<b>Clicked point:</b><br>" +
-             "Lat: " + lat + "<br>" +
-             "Lng: " + lng + "<hr>";
+             "Lat: " + latFixed + "<br>" +
+             "Lng: " + lngFixed + "<hr>";
 
   if (info.Flood) {
     html += "<b>Flood risk level:</b> " + info.Flood.gridcode + "<br>";
     html += "<b>Recommendation:</b> " + riskMessage(info.Flood.gridcode) + "<br><br>";
+  } else {
+    html += "<b>Flood risk level:</b> (no flood polygon at this point)<br><br>";
   }
 
+  if (info.Rainfall)  html += "<b>Rainfall class:</b> " + info.Rainfall.gridcode + "<br>";
   if (info.Elevation) html += "<b>Elevation class:</b> " + info.Elevation.gridcode + "<br>";
   if (info.Slope)     html += "<b>Slope class:</b> " + info.Slope.gridcode + "<br>";
-  if (info.Rainfall)  html += "<b>Rainfall class:</b> " + info.Rainfall.gridcode + "<br>";
   if (info.Zones)     html += "<b>Zone class:</b> " + info.Zones.gridcode + "<br>";
   if (info.Flow)      html += "<b>Flow Acc class:</b> " + info.Flow.gridcode + "<br>";
-  if (info.Soil)      html += "<b>Soil risk:</b> " + info.Soil.gridcode + "<br>";
+  if (info.Soil)      html += "<b>Soil risk (gridcode):</b> " + info.Soil.gridcode + "<br>";
 
-  // أقرب منطقة آمنة من الفيضانات (gridcode 1–2)
+  // Nearest safer flood area (1–2)
   if (floodSafePoints && floodSafePoints.features.length > 0) {
     try {
       var nearest = turf.nearestPoint(point, floodSafePoints);
       var distKm = turf.distance(point, nearest, { units: "kilometers" });
-      html += "<br><b>Nearest safer flood area:</b> ~" + distKm.toFixed(2) + " km away.";
+      html += "<br><b>Nearest safer flood area:</b> ~" +
+              distKm.toFixed(2) + " km away.";
     } catch (err) {
       console.warn("Nearest safe area error:", err);
     }
@@ -328,31 +406,124 @@ map.on("click", function(e) {
 
   L.popup().setLatLng(e.latlng).setContent(html).openOn(map);
 
-  // خزّن آخر تحليل لزر التقرير
+  // store last analysis (for email report)
   lastAnalysis = {
-    lat: lat,
-    lng: lng,
+    lat: latFixed,
+    lng: lngFixed,
     info: info
   };
+}
+
+// Buffer analysis
+function analyseBuffer(centerLatLng, distanceMeters) {
+  if (!floodLayer) {
+    alert("Flood layer not loaded yet.");
+    return;
+  }
+  var distKm = distanceMeters / 1000.0;
+  var point = turf.point([centerLatLng.lng, centerLatLng.lat]);
+  var buffered = turf.buffer(point, distKm, { units: "kilometers" });
+
+  // draw buffer
+  if (bufferLayer) {
+    map.removeLayer(bufferLayer);
+  }
+  bufferLayer = L.geoJSON(buffered, {
+    style: {
+      color: "#0066ff",
+      weight: 2,
+      fillOpacity: 0.1
+    }
+  }).addTo(map);
+  map.fitBounds(bufferLayer.getBounds());
+
+  function summarizeByGridcode(layer, layerName) {
+    if (!layer) return "<i>No " + layerName + " layer loaded.</i>";
+    var counts = {};
+    layer.eachLayer(function(lyr) {
+      var f = lyr.toGeoJSON();
+      if (turf.booleanIntersects(buffered, f)) {
+        var gc = f.properties.gridcode;
+        counts[gc] = (counts[gc] || 0) + 1;
+      }
+    });
+    var keys = Object.keys(counts).sort(function(a, b){return a-b;});
+    if (keys.length === 0) return "<i>No " + layerName + " features inside buffer.</i>";
+    var lines = "<b>" + layerName + ":</b><br>";
+    keys.forEach(function(k) {
+      lines += "Level " + k + ": " + counts[k] + " polygons<br>";
+    });
+    return lines;
+  }
+
+  // Zones: list names
+  var zoneText = "<i>No Zones layer loaded.</i>";
+  if (zonesLayer) {
+    var names = new Set();
+    zonesLayer.eachLayer(function(lyr) {
+      var f = lyr.toGeoJSON();
+      if (turf.booleanIntersects(buffered, f)) {
+        var n = f.properties.Name_Eng || f.properties.name || f.properties.ZONE_NAME || "Zone";
+        names.add(n);
+      }
+    });
+    if (names.size > 0) {
+      zoneText = "<b>Zones:</b><br>" + Array.from(names).join("<br>");
+    } else {
+      zoneText = "<i>No zones inside buffer.</i>";
+    }
+  }
+
+  var reportDiv = document.getElementById("bufferReport");
+  var html = "<b>Buffer analysis</b><br>" +
+             "Center: (" + centerLatLng.lat.toFixed(5) + ", " +
+                          centerLatLng.lng.toFixed(5) + ")<br>" +
+             "Distance: " + distanceMeters.toFixed(0) + " m<br><hr>";
+
+  html += summarizeByGridcode(floodLayer, "Flood") + "<br>";
+  html += summarizeByGridcode(flowLayer,  "Flow Acc") + "<br>";
+  html += summarizeByGridcode(rainLayer,  "Rainfall") + "<br>";
+  html += zoneText;
+
+  reportDiv.innerHTML = html;
+}
+
+// Map click handler
+map.on("click", function(e) {
+  if (bufferMode) {
+    // use click for buffer
+    var distInput = document.getElementById("bufferDistance");
+    var dist = Number(distInput.value);
+    if (!dist || dist <= 0) {
+      alert("Enter a valid buffer distance in meters.");
+      bufferMode = false;
+      return;
+    }
+    analyseBuffer(e.latlng, dist);
+    bufferMode = false;
+  } else {
+    // normal identify
+    analysePoint(e);
+  }
 });
 
-// =========================
-// 7) Highlight extreme risk
-// =========================
+// =====================================================
+// 7) Highlight extreme flood risk
+// =====================================================
+var highlightLayer = null;
+
 document.getElementById("btnHighlight").addEventListener("click", function() {
   if (!floodLayer) {
     alert("Flood layer not loaded yet.");
     return;
   }
 
-  // امسح هايلايت قديم إن وجد
   if (highlightLayer) {
     map.removeLayer(highlightLayer);
     highlightLayer = null;
   }
 
   var extremeFeatures = [];
-
   floodLayer.eachLayer(function(lyr) {
     var f = lyr.toGeoJSON();
     if (Number(f.properties.gridcode) === 5) {
@@ -361,11 +532,14 @@ document.getElementById("btnHighlight").addEventListener("click", function() {
   });
 
   if (extremeFeatures.length === 0) {
-    alert("No extreme flood risk areas (level 5) in the current data.");
+    alert("No extreme flood risk areas (level 5) in the data.");
     return;
   }
 
-  highlightLayer = L.geoJSON({ type: "FeatureCollection", features: extremeFeatures }, {
+  highlightLayer = L.geoJSON({
+    type: "FeatureCollection",
+    features: extremeFeatures
+  }, {
     style: {
       color: "#ff00ff",
       weight: 3,
@@ -376,9 +550,9 @@ document.getElementById("btnHighlight").addEventListener("click", function() {
   map.fitBounds(highlightLayer.getBounds());
 });
 
-// =========================
-// 8) Emergency report button
-// =========================
+// =====================================================
+// 8) Emergency report (email)
+// =====================================================
 document.getElementById("btnReport").addEventListener("click", function() {
   if (!lastAnalysis) {
     alert("Click on a location on the map first to analyse flood risk.");
@@ -406,20 +580,21 @@ document.getElementById("btnReport").addEventListener("click", function() {
     lines.push("");
   }
 
-  if (info.Soil)     lines.push("Soil risk (gridcode): " + info.Soil.gridcode);
   if (info.Rainfall) lines.push("Rainfall class: " + info.Rainfall.gridcode);
+  if (info.Soil)     lines.push("Soil risk (gridcode): " + info.Soil.gridcode);
   if (info.Slope)    lines.push("Slope class: " + info.Slope.gridcode);
   if (info.Elevation)lines.push("Elevation class: " + info.Elevation.gridcode);
   if (info.Flow)     lines.push("Flow accumulation class: " + info.Flow.gridcode);
   if (info.Zones)    lines.push("Zone class: " + info.Zones.gridcode);
   lines.push("");
-  lines.push("This report was generated automatically from the Flood Hazard Web Map.");
+  lines.push("This report was generated automatically from the Flood Hazard Web Map");
+  lines.push("for Ramallah & Al-Bireh Governorate.");
 
   var body = lines.join("\n");
 
-  // عدّلي الإيميل للجهة المختصة
+  // TODO: ضعِ هنا إيميل الجهة المسؤولة الفعلي
   var authorityEmail = "authority@example.com";
-  var subject = "Flood Hazard Warning";
+  var subject = "Flood Hazard Warning – Ramallah & Al-Bireh";
 
   var mailto = "mailto:" + encodeURIComponent(authorityEmail) +
                "?subject=" + encodeURIComponent(subject) +
@@ -428,12 +603,29 @@ document.getElementById("btnReport").addEventListener("click", function() {
   window.location.href = mailto;
 });
 
-// =========================
-// 9) Legend (Flood Hazard Levels)
-// =========================
-var legend = L.control({ position: "bottomleft" });
+// =====================================================
+// 9) Buffer button
+// =====================================================
+document.getElementById("btnBuffer").addEventListener("click", function() {
+  var distInput = document.getElementById("bufferDistance");
+  var dist = Number(distInput.value);
+  if (!dist || dist <= 0) {
+    alert("Enter a valid buffer distance in meters.");
+    return;
+  }
+  document.getElementById("bufferReport").innerHTML =
+    "Click on the map to create a buffer.";
+  bufferMode = true;
+});
 
-legend.onAdd = function() {
+// =====================================================
+// 10) Legends
+// =====================================================
+
+// Flood legend
+var floodLegend = L.control({ position: "bottomleft" });
+
+floodLegend.onAdd = function() {
   var div = L.DomUtil.create("div", "legend");
   div.innerHTML += "<b>Flood Hazard Levels</b><br>";
   div.innerHTML += '<i style="background:#00cc44"></i> Level 1<br>';
@@ -443,24 +635,36 @@ legend.onAdd = function() {
   div.innerHTML += '<i style="background:#990000"></i> Level 5<br>';
   return div;
 };
+floodLegend.addTo(map);
 
-legend.addTo(map);
+// Rainfall legend (small)
+var rainLegend = L.control({ position: "bottomright" });
 
-// =========================
-// 10) North arrow
-// =========================
+rainLegend.onAdd = function() {
+  var div = L.DomUtil.create("div", "legend");
+  div.innerHTML += "<b>Rainfall Classes</b><br>";
+  for (var i = 1; i <= 10; i++) {
+    div.innerHTML += '<i style="background:' + rainfallColor(i) +
+                     '"></i> Class ' + i + "<br>";
+  }
+  return div;
+};
+rainLegend.addTo(map);
+
+// North arrow
 var north = L.control({ position: "topright" });
 
 north.onAdd = function() {
   var div = L.DomUtil.create("div", "north-arrow");
-  div.innerHTML = '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Circle_arrow_north.svg/240px-Circle_arrow_north.svg.png" width="60">';
+  div.innerHTML =
+    '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Circle_arrow_north.svg/240px-Circle_arrow_north.svg.png" width="60">';
   return div;
 };
-
 north.addTo(map);
 
 </script>
 
 </body>
 </html>
+
 
