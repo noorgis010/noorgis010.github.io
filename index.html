@@ -375,16 +375,22 @@ legend.addTo(map);
 
 // =========================
 // North Arrow
+
 // =========================
-L.control({position:"topright"}).onAdd=function(){
-  var div=L.DomUtil.create("div","north-arrow");
-  div.innerHTML='<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Circle_arrow_north.svg/240px-Circle_arrow_north.svg.png" width="55">';
+  var north = L.control({ position: "topleft" });
+north.onAdd = function () {
+  var div = L.DomUtil.create("div", "north-arrow");
+  div.innerHTML = `<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6b/Circle_arrow_north.svg/240px-Circle_arrow_north.svg.png" style="width:50px;">`;
   return div;
-}.addTo(map);
+};
+north.addTo(map);
+
+
 </script>
 
 </body>
 </html>
+
 
 
 
