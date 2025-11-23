@@ -334,6 +334,11 @@ loadLayer("rain.json", styleRain10, "Rainfall (10 levels)", "rainLayer", true);
 // MAIN MAP CLICK HANDLER
 // =========================
 map.on("click", function(e) {
+  // If waiting for buffer click → skip popup and only do buffer
+   if (waitingForBufferClick) {
+      handleBufferClick(e);
+    return;
+  }
 
   // buffer click mode
   if (waitingForBufferClick) {
@@ -674,6 +679,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
