@@ -610,9 +610,9 @@ function drawSafeRoute(start, end) {
     coordinates: [
       [start.lng, start.lat],
       [end.lng, end.lat]
-       ]
-     })
-   })
+      ]
+    })
+ })
 
   .then(res => res.json())
   .then(json => {
@@ -626,10 +626,10 @@ function drawSafeRoute(start, end) {
       weight: 5
     }).addTo(map);
     map.fitBounds(routeLayer.getBounds());
-  })
+ })
   .catch(() => {
     alert("Error calling routing service.");
-  });
+ });
 }
 
 map.on("dblclick", function(e) {
@@ -679,6 +679,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
