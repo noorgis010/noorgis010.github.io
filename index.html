@@ -118,7 +118,7 @@
       font-size: 11px;
     }
 
-    /* >>> أيقونة أداة القياس (Measure) <<< */
+    /* أيقونة أداة القياس */
     .leaflet-control-measure {
       background-image: url('https://cdn-icons-png.flaticon.com/512/287/287980.png') !important;
       background-size: 18px 18px !important;
@@ -202,11 +202,12 @@ function riskMessage(level) {
          level === 5 ? "Extreme hazard" :
          "Unknown";
 }
+
 // =========================
-// API CONFIG (from DIFF)
+// API CONFIG
 // =========================
 const OPENROUTESERVICE_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImU0MGJmYjNiZDY2ODRhNTdiYTg1MTZkZmVlN2Q1Yzg2IiwiaCI6Im11cm11cjY0In0=";
-const OPENWEATHER_KEY = "384571a4172844344b2e6e07ca33c936";
+const OPENWEATHER_KEY      = "384571a4172844344b2e6e07ca33c936";
 
 // =========================
 // MAP INIT
@@ -239,15 +240,13 @@ map.on("locationfound", e => {
   userLocation = e.latlng;
   L.marker(e.latlng).addTo(map).bindPopup("Your location");
   userReportDiv.textContent =
-  `Location detected: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
-
+    `Location detected: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
 });
 
 map.on("locationerror", (err) => {
   console.error("Geolocation error", err);
   userReportDiv.textContent = "Location not available.";
 });
-
 
 // =========================
 // STYLE FUNCTIONS
@@ -320,78 +319,75 @@ function loadLayer(file, styleFunc, label, assignTo, isRain) {
     });
 }
 
-
 // change filenames حسب ملفاتك الفعلية
-loadLayer("flood.json", styleBasic, "Flood", "floodLayer", false);
-loadLayer("Ramallh_zones.json", styleBasic, "Zones", "zonesLayer", false);
-loadLayer("elev.json", styleBasic, "Elevation", "elevLayer", false);
-loadLayer("slop.json", styleBasic, "Slope", "slopeLayer", false);
-loadLayer("flow_acu.json", styleBasic, "Flow Accumulation", "flowLayer", false);
-loadLayer("soil_new.json", styleBasic, "Soil", "soilLayer", false);
-loadLayer("rain.json", styleRain10, "Rainfall (10 levels)", "rainLayer", true);
+loadLayer("flood.json",          styleBasic, "Flood",              "floodLayer", false);
+loadLayer("Ramallh_zones.json",  styleBasic, "Zones",              "zonesLayer", false);
+loadLayer("elev.json",           styleBasic, "Elevation",          "elevLayer",  false);
+loadLayer("slop.json",           styleBasic, "Slope",              "slopeLayer", false);
+loadLayer("flow_acu.json",       styleBasic, "Flow Accumulation",  "flowLayer",  false);
+loadLayer("soil_new.json",       styleBasic, "Soil",               "soilLayer",  false);
+loadLayer("rain.json",           styleRain10,"Rainfall (10 levels)","rainLayer", true);
 
 // =========================
 // MAIN MAP CLICK HANDLER
 // =========================
 map.on("click", function(e) {
 
-    // BUFFER: أول كبسة لازم تعمل buffer وما تعرض popup
-    if (waitingForBufferClick) {
-        handleBufferClick(e);
-        waitingForBufferClick = false;
-        return;   // مهم جدًا → يمنع أي بوب اب
-    }
+  // 1) BUFFER CLICK MODE → لا popup
+  if (waitingForBufferClick) {
+    waitingForBufferClick = false;
+    handleBufferClick(e);
+    return;
+  }
 
-    // باقي الكليك العادية → تحليل و popup
-    let lat = e.latlng.lat.toFixed(6);
-    let lng = e.latlng.lng.toFixed(6);
-    let point = turf.point([lng, lat]);
+  // 2) NORMAL ANALYSIS CLICK → popup عادي
+  let lat = e.latlng.lat.toFixed(6);
+  let lng = e.latlng.lng.toFixed(6);
+  let point = turf.point([lng, lat]);
 
-    let info = {};
+  let info = {};
 
-    function search(layer, name) {
-        if (!layer) return;
-        layer.eachLayer(lyr => {
-            let poly = lyr.toGeoJSON();
-            if (turf.booleanPointInPolygon(point, poly)) {
-                info[name] = poly.properties;
-            }
-        });
-    }
+  function search(layer, name) {
+    if (!layer) return;
+    layer.eachLayer(lyr => {
+      let poly = lyr.toGeoJSON();
+      if (turf.booleanPointInPolygon(point, poly)) {
+        info[name] = poly.properties;
+      }
+    });
+  }
 
-    search(floodLayer, "Flood");
-    search(rainLayer, "Rainfall");
-    search(elevLayer, "Elevation");
-    search(slopeLayer, "Slope");
-    search(flowLayer, "Flow");
-    search(soilLayer, "Soil");
-    search(zonesLayer, "Zones");
+  search(floodLayer, "Flood");
+  search(rainLayer,  "Rainfall");
+  search(elevLayer,  "Elevation");
+  search(slopeLayer, "Slope");
+  search(flowLayer,  "Flow");
+  search(soilLayer,  "Soil");
+  search(zonesLayer, "Zones");
 
-    let html = `<b>Location:</b><br>
-                Lat: ${lat}<br>
-                Lng: ${lng}<hr>`;
+  let html = `<b>Location:</b><br>
+              Lat: ${lat}<br>
+              Lng: ${lng}<hr>`;
 
-    if (info.Flood) {
-        html += `<b>Flood risk:</b> ${info.Flood.gridcode}<br>`;
-        html += `<b>Recommendation:</b> ${riskMessage(info.Flood.gridcode)}<hr>`;
-    }
+  if (info.Flood) {
+    html += `<b>Flood risk:</b> ${info.Flood.gridcode}<br>`;
+    html += `<b>Recommendation:</b> ${riskMessage(info.Flood.gridcode)}<hr>`;
+  }
 
-    if (info.Rainfall) html += `Rainfall class: ${info.Rainfall.gridcode}<br>`;
-    if (info.Elevation) html += `Elevation class: ${info.Elevation.gridcode}<br>`;
-    if (info.Slope)     html += `Slope class: ${info.Slope.gridcode}<br>`;
-    if (info.Flow)      html += `Flow class: ${info.Flow.gridcode}<br>`;
-    if (info.Soil)      html += `Soil class: ${info.Soil.gridcode}<br>`;
-    if (info.Zones)     html += `Zone class: ${info.Zones.gridcode}<br>`;
+  if (info.Rainfall) html += `Rainfall class: ${info.Rainfall.gridcode}<br>`;
+  if (info.Elevation) html += `Elevation class: ${info.Elevation.gridcode}<br>`;
+  if (info.Slope)     html += `Slope class: ${info.Slope.gridcode}<br>`;
+  if (info.Flow)      html += `Flow class: ${info.Flow.gridcode}<br>`;
+  if (info.Soil)      html += `Soil class: ${info.Soil.gridcode}<br>`;
+  if (info.Zones)     html += `Zone class: ${info.Zones.gridcode}<br>`;
 
-    L.popup()
-        .setLatLng(e.latlng)
-        .setContent(html)
-        .openOn(map);
+  L.popup()
+    .setLatLng(e.latlng)
+    .setContent(html)
+    .openOn(map);
 
-    lastAnalysis = { lat, lng, info };
+  lastAnalysis = { lat, lng, info };
 });
-
-
 
 // =========================
 // HIGHLIGHT EXTREME FLOOD RISK (TOGGLE)
@@ -450,13 +446,13 @@ function handleBufferClick(e) {
   let center = e.latlng;
   let km = dist / 1000;
 
-  let pt = turf.point([center.lng, center.lat]);
+  let pt   = turf.point([center.lng, center.lat]);
   let buff = turf.buffer(pt, km, { units: "kilometers" });
 
-  if (bufferLayer) map.removeLayer(bufferLayer);
+  if (bufferLayer)  map.removeLayer(bufferLayer);
   if (bufferCircle) map.removeLayer(bufferCircle);
 
-  bufferCircle = L.circle(center, {
+  bufferCircle = L.circle([center.lat, center.lng], {
     radius: dist,
     color: "#0066ff",
     fillOpacity: 0.15
@@ -470,7 +466,7 @@ function handleBufferClick(e) {
     }
   }).addTo(map);
 
-  map.fitBounds(bufferCircle.getBounds());
+  map.setView(center, 14);   // زووم مريح على مركز البفر
   analyseBuffer(buff, center, dist);
 }
 
@@ -493,11 +489,11 @@ function analyseBuffer(buff, center, dist) {
   }
 
   report += countInside(floodLayer, "Flood");
-  report += countInside(rainLayer, "Rainfall");
-  report += countInside(flowLayer, "Flow");
+  report += countInside(rainLayer,  "Rainfall");
+  report += countInside(flowLayer,  "Flow");
   report += countInside(slopeLayer, "Slope");
-  report += countInside(elevLayer, "Elevation");
-  report += countInside(soilLayer, "Soil");
+  report += countInside(elevLayer,  "Elevation");
+  report += countInside(soilLayer,  "Soil");
   report += countInside(zonesLayer, "Zones");
 
   document.getElementById("bufferReport").innerHTML = report;
@@ -524,15 +520,13 @@ Lng: ${a.lng}
 ========= ANALYSIS =========
 `;
 
-  if (a.info.Flood) {
-    rep += `Flood Risk Level: ${a.info.Flood.gridcode}\n`;
-  }
+  if (a.info.Flood)    rep += `Flood Risk Level: ${a.info.Flood.gridcode}\n`;
   if (a.info.Rainfall) rep += `Rainfall Class: ${a.info.Rainfall.gridcode}\n`;
-  if (a.info.Elevation) rep += `Elevation Class: ${a.info.Elevation.gridcode}\n`;
-  if (a.info.Slope)     rep += `Slope Class: ${a.info.Slope.gridcode}\n`;
-  if (a.info.Flow)      rep += `Flow Accumulation Class: ${a.info.Flow.gridcode}\n`;
-  if (a.info.Soil)      rep += `Soil Class: ${a.info.Soil.gridcode}\n`;
-  if (a.info.Zones)     rep += `Zone Class: ${a.info.Zones.gridcode}\n`;
+  if (a.info.Elevation)rep += `Elevation Class: ${a.info.Elevation.gridcode}\n`;
+  if (a.info.Slope)    rep += `Slope Class: ${a.info.Slope.gridcode}\n`;
+  if (a.info.Flow)     rep += `Flow Accumulation Class: ${a.info.Flow.gridcode}\n`;
+  if (a.info.Soil)     rep += `Soil Class: ${a.info.Soil.gridcode}\n`;
+  if (a.info.Zones)    rep += `Zone Class: ${a.info.Zones.gridcode}\n`;
 
   rep += `
 ============ SUMMARY ============
@@ -599,21 +593,19 @@ function drawSafeRoute(start, end) {
 
   let url = "https://api.openrouteservice.org/v2/directions/driving-car";
 
-
   fetch(url, {
-   method: "POST",
-   headers: {
-    "Content-Type": "application/json",
-    "Authorization": OPENROUTESERVICE_KEY
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": OPENROUTESERVICE_KEY
     },
-   body: JSON.stringify({
-    coordinates: [
-      [start.lng, start.lat],
-      [end.lng, end.lat]
+    body: JSON.stringify({
+      coordinates: [
+        [start.lng, start.lat],
+        [end.lng,   end.lat]
       ]
     })
- })
-
+  })
   .then(res => res.json())
   .then(json => {
     if (!json.features || !json.features.length) {
@@ -626,23 +618,20 @@ function drawSafeRoute(start, end) {
       weight: 5
     }).addTo(map);
     map.fitBounds(routeLayer.getBounds());
- })
+  })
   .catch(() => {
-    alert("Error calling routing service.");
- });
+    alert("Error calling routing service (or 404 if key not valid).");
+  });
 }
 
 map.on("dblclick", function(e) {
-  if (waitingForBufferClick) return; // يمنع الروت إذا عم نعمل Buffer
-
   if (!userLocation) {
     alert("User location not detected yet.");
     return;
   }
   drawSafeRoute(userLocation, e.latlng);
-  alert("Safe route generated (blue line).");
+  alert("Safe route generated (blue line if service works).");
 });
-
 
 // =========================
 // LEGEND
@@ -679,25 +668,6 @@ north.addTo(map);
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
