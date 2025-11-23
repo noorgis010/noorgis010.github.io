@@ -625,6 +625,8 @@ function drawSafeRoute(start, end) {
 }
 
 map.on("dblclick", function(e) {
+  if (waitingForBufferClick) return; // يمنع الروت إذا عم نعمل Buffer
+
   if (!userLocation) {
     alert("User location not detected yet.");
     return;
@@ -632,6 +634,7 @@ map.on("dblclick", function(e) {
   drawSafeRoute(userLocation, e.latlng);
   alert("Safe route generated (blue line).");
 });
+
 
 // =========================
 // LEGEND
@@ -668,6 +671,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
