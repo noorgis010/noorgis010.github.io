@@ -200,6 +200,9 @@ var map = L.map("map", {
   center: [31.9, 35.2],
   zoom: 12
 });
+var map = L.map("map").setView([31.9, 35.2], 12);
+
+let apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImU0MGJmYjNiZDY2ODRhNTdiYTg1MTZkZmVlN2Q1Yzg2IiwiaCI6Im11cm11cjY0In0=";
 
 // base layers
 lightTiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -639,5 +642,6 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
