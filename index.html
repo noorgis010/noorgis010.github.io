@@ -597,15 +597,19 @@ function drawSafeRoute(start, end) {
 
 
   fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      coordinates: [
-        [start.lng, start.lat],
-        [end.lng, end.lat]
-      ]
-    })
-  })
+   method: "POST",
+   headers: {
+    "Content-Type": "application/json",
+    "Authorization": OPENROUTESERVICE_KEY
+    },
+   body: JSON.stringify({
+    coordinates: [
+      [start.lng, start.lat],
+      [end.lng, end.lat]
+       ]
+     })
+   })
+
   .then(res => res.json())
   .then(json => {
     if (!json.features || !json.features.length) {
@@ -671,6 +675,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
