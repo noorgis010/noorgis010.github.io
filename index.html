@@ -243,9 +243,11 @@ map.on("locationfound", e => {
 
 });
 
-map.on("locationerror", () => {
+map.on("locationerror", (err) => {
+  console.error("Geolocation error", err);
   userReportDiv.textContent = "Location not available.";
 });
+
 
 // =========================
 // STYLE FUNCTIONS
@@ -658,6 +660,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
