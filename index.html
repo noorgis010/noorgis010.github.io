@@ -97,7 +97,7 @@
     }
 
     .north-arrow img {
-      width: 32px;
+      width: 36px;
       height: auto;
       display: block;
     }
@@ -116,6 +116,16 @@
     input[type="number"] {
       box-sizing: border-box;
       font-size: 11px;
+    }
+
+    /* >>> أيقونة أداة القياس (Measure) <<< */
+    .leaflet-control-measure {
+      background-image: url('https://cdn-icons-png.flaticon.com/512/287/287980.png') !important;
+      background-size: 18px 18px !important;
+      background-repeat: no-repeat;
+      background-position: center center;
+      width: 30px !important;
+      height: 30px !important;
     }
   </style>
 </head>
@@ -305,8 +315,6 @@ loadLayer("rain.json", styleRain10, "Rainfall (10 levels)", "rainLayer", true);
 
 // =========================
 // MAIN MAP CLICK HANDLER
-//  - إذا في انتظار بفر → يعمل بفر
-//  - غير هيك → يعمل تحليل نقطة
 // =========================
 map.on("click", function(e) {
 
@@ -401,7 +409,7 @@ document.getElementById("btnHighlight").onclick = function () {
 };
 
 // =========================
-// BUFFER TOOL (FAST, NO DELAY)
+// BUFFER TOOL
 // =========================
 document.getElementById("btnBuffer").onclick = function () {
   let dist = Number(document.getElementById("buffDist").value);
@@ -474,7 +482,7 @@ function analyseBuffer(buff, center, dist) {
 }
 
 // =========================
-// EMERGENCY REPORT (USES lastAnalysis)
+// EMERGENCY REPORT
 // =========================
 document.getElementById("btnReport").onclick = function () {
 
@@ -531,14 +539,16 @@ document.getElementById("btnDark").onclick = function () {
 };
 
 // =========================
-// LIVE WEATHER LAYER (PRECIPITATION)
+// LIVE WEATHER LAYER
 // =========================
 function loadWeather() {
   let api = "384571a4172844344b2e6e07ca33c936";
 
   let url = `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${api}`;
 
-  if (weatherLayer) map.removeLayer(weatherLayer);
+  if (weatherLayer && map.hasLayer(weatherLayer)) {
+    map.removeLayer(weatherLayer);
+  }
 
   weatherLayer = L.tileLayer(url, { opacity: 1 });
   weatherLayer.addTo(map);
@@ -560,7 +570,7 @@ var measureControl = new L.Control.Measure({
 measureControl.addTo(map);
 
 // =========================
-// SAFE ROUTE FINDER (Double click)
+// SAFE ROUTE FINDER
 // =========================
 function drawSafeRoute(start, end) {
   if (!start || !end) return;
@@ -633,7 +643,7 @@ var north = L.control({ position: "topleft" });
 north.onAdd = function () {
   var div = L.DomUtil.create("div", "north-arrow");
   div.innerHTML = `
-    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/North_arrow.svg/120px-North_arrow.svg.png">
+    <img src="https://cdn-icons-png.flaticon.com/512/54/54706.png">
   `;
   return div;
 };
@@ -643,6 +653,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
