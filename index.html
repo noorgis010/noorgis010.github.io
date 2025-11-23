@@ -290,26 +290,36 @@ var layersControl = L.control.layers(null, {}, { collapsed: false }).addTo(map);
 // LOAD LAYERS
 // =========================
 function loadLayer(file, styleFunc, label, assignTo, isRain) {
-  fetch(file).then(r => r.json()).then(data => {
-    window[assignTo] = L.geoJSON(data, {
-      style: isRain ? styleRain10 : styleFunc,
-      onEachFeature: popupGeneric
-    }).addTo(map);
+  fetch(file)
+    .then(r => {
+      if (!r.ok) throw new Error(`Failed to load ${file}`);
+      return r.json();
+    })
+    .then(data => {
+      window[assignTo] = L.geoJSON(data, {
+        style: isRain ? styleRain10 : styleFunc,
+        onEachFeature: popupGeneric
+      }).addTo(map);
 
-    layersControl.addOverlay(window[assignTo], label);
+      layersControl.addOverlay(window[assignTo], label);
 
-    if (assignTo === "floodLayer") {
-      let safe = [];
-      data.features.forEach(f => {
-        let gc = Number(f.properties.gridcode);
-        if (gc === 1 || gc === 2) {
-          safe.push(turf.centroid(f));
-        }
-      });
-      floodSafePoints = turf.featureCollection(safe);
-    }
-  });
+      if (assignTo === "floodLayer") {
+        let safe = [];
+        data.features.forEach(f => {
+          let gc = Number(f.properties.gridcode);
+          if (gc === 1 || gc === 2) {
+            safe.push(turf.centroid(f));
+          }
+        });
+        floodSafePoints = turf.featureCollection(safe);
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      alert(`Error loading layer: ${label}`);
+    });
 }
+
 
 // change filenames حسب ملفاتك الفعلية
 loadLayer("flood.json", styleBasic, "Flood", "floodLayer", false);
@@ -660,6 +670,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
