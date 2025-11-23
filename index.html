@@ -336,17 +336,9 @@ loadLayer("rain.json", styleRain10, "Rainfall (10 levels)", "rainLayer", true);
 map.on("click", function(e) {
   // If waiting for buffer click → skip popup and only do buffer
    if (waitingForBufferClick) {
-      handleBufferClick(e);
+       handleBufferClick(e);
     return;
-  }
-
-  // buffer click mode
-  if (waitingForBufferClick) {
-    waitingForBufferClick = false;
-    handleBufferClick(e);
-    return;
-  }
-
+ 
   // normal analysis click
   let lat = e.latlng.lat.toFixed(6);
   let lng = e.latlng.lng.toFixed(6);
@@ -359,7 +351,7 @@ map.on("click", function(e) {
     layer.eachLayer(lyr => {
       let poly = lyr.toGeoJSON();
       if (turf.booleanPointInPolygon(point, poly)) {
-        info[name] = poly.properties;
+         info[name] = poly.properties;
       }
     });
   }
@@ -679,6 +671,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
