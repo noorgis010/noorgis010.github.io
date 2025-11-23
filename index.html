@@ -335,14 +335,14 @@ loadLayer("rain.json", styleRain10, "Rainfall (10 levels)", "rainLayer", true);
 // =========================
 map.on("click", function(e) {
 
-    // BUFFER CLICK MODE
+    // BUFFER: أول كبسة لازم تعمل buffer وما تعرض popup
     if (waitingForBufferClick) {
-        waitingForBufferClick = false;
         handleBufferClick(e);
-        return;
+        waitingForBufferClick = false;
+        return;   // مهم جدًا → يمنع أي بوب اب
     }
 
-    // NORMAL ANALYSIS CLICK
+    // باقي الكليك العادية → تحليل و popup
     let lat = e.latlng.lat.toFixed(6);
     let lng = e.latlng.lng.toFixed(6);
     let point = turf.point([lng, lat]);
@@ -384,13 +384,13 @@ map.on("click", function(e) {
     if (info.Zones)     html += `Zone class: ${info.Zones.gridcode}<br>`;
 
     L.popup()
-      .setLatLng(e.latlng)
-      .setContent(html)
-      .openOn(map);
+        .setLatLng(e.latlng)
+        .setContent(html)
+        .openOn(map);
 
     lastAnalysis = { lat, lng, info };
-
 });
+
 
 
 // =========================
@@ -679,6 +679,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
