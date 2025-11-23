@@ -566,7 +566,8 @@ function drawSafeRoute(start, end) {
 
   if (routeLayer) map.removeLayer(routeLayer);
 
-  let apiKey = "YOUR_ORS_KEY"; // ← حطي مفتاح OpenRouteService
+  let apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImU0MGJmYjNiZDY2ODRhNTdiYTg1MTZkZmVlN2Q1Yzg2IiwiaCI6Im11cm11cjY0In0=";
+
   let url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}`;
 
   fetch(url, {
@@ -641,6 +642,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
