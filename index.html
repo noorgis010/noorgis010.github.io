@@ -68,9 +68,9 @@
     }
 
     #btnHighlight { background: #007bff; color: white; }
-    #btnReport { background: #d9534f; color: white; }
-    #btnBuffer { background: #28a745; color: white; }
-    #btnDark { background: #333333; color: white; }
+    #btnReport    { background: #d9534f; color: white; }
+    #btnBuffer    { background: #28a745; color: white; }
+    #btnDark      { background: #333333; color: white; }
 
     .legend {
       background: white;
@@ -169,7 +169,7 @@ let floodHighlightLayer = null;
 
 let bufferLayer = null;
 let bufferCircle = null;
-let waitingForBufferClick = false;
+let bufferMode = false;   // بدل waitingForBufferClick
 
 let floodLayer, zonesLayer, elevLayer, rainLayer, slopeLayer, soilLayer, flowLayer;
 let floodSafePoints = null;
@@ -226,7 +226,7 @@ darkTiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{
   maxZoom: 19
 });
 
-// disable default double-click zoom (we use it for route)
+// disable default double-click zoom (نستخدمه للـ Route)
 map.doubleClickZoom.disable();
 
 // =========================
@@ -319,7 +319,7 @@ function loadLayer(file, styleFunc, label, assignTo, isRain) {
     });
 }
 
-// change filenames حسب ملفاتك الفعلية
+// غيّري أسماء الملفات إذا اختلفت عندك
 loadLayer("flood.json",          styleBasic, "Flood",              "floodLayer", false);
 loadLayer("Ramallh_zones.json",  styleBasic, "Zones",              "zonesLayer", false);
 loadLayer("elev.json",           styleBasic, "Elevation",          "elevLayer",  false);
@@ -333,14 +333,14 @@ loadLayer("rain.json",           styleRain10,"Rainfall (10 levels)","rainLayer",
 // =========================
 map.on("click", function(e) {
 
-  // 1) BUFFER CLICK MODE → لا popup
-  if (waitingForBufferClick) {
-    waitingForBufferClick = false;
+  // 1) إذا البوفر مفعّل → كبسة واحدة بس للبوفر (بدون Popup)
+  if (bufferMode) {
+    bufferMode = false;
     handleBufferClick(e);
     return;
   }
 
-  // 2) NORMAL ANALYSIS CLICK → popup عادي
+  // 2) كبسة عادية → تحليل + Popup
   let lat = e.latlng.lat.toFixed(6);
   let lng = e.latlng.lng.toFixed(6);
   let point = turf.point([lng, lat]);
@@ -435,7 +435,7 @@ document.getElementById("btnBuffer").onclick = function () {
     alert("Please enter buffer distance.");
     return;
   }
-  waitingForBufferClick = true;
+  bufferMode = true;
   alert("Click on the map to create buffer.");
 };
 
@@ -466,7 +466,7 @@ function handleBufferClick(e) {
     }
   }).addTo(map);
 
-  map.setView(center, 14);   // زووم مريح على مركز البفر
+  map.setView(center, 14);
   analyseBuffer(buff, center, dist);
 }
 
@@ -505,7 +505,7 @@ function analyseBuffer(buff, center, dist) {
 document.getElementById("btnReport").onclick = function () {
 
   if (!lastAnalysis) {
-    alert("اضغط على الخريطة أولًا لتحديد موقع التحليل قبل إرسال التقرير.");
+    alert("اضغطي على الخريطة أولًا لتحديد موقع التحليل قبل إرسال التقرير.");
     return;
   }
 
@@ -620,7 +620,7 @@ function drawSafeRoute(start, end) {
     map.fitBounds(routeLayer.getBounds());
   })
   .catch(() => {
-    alert("Error calling routing service (or 404 if key not valid).");
+    alert("Error calling routing service (أو 404 لو المفتاح مش مفعّل للاتجاهات).");
   });
 }
 
@@ -668,7 +668,3 @@ north.addTo(map);
 
 </body>
 </html>
-
-
-
-
