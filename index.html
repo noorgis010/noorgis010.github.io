@@ -561,7 +561,6 @@ document.getElementById("btnDark").onclick = function () {
 function loadWeather() {
   let url = `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${OPENWEATHER_KEY}`;
 
-
   if (weatherLayer && map.hasLayer(weatherLayer)) {
     map.removeLayer(weatherLayer);
   }
@@ -593,7 +592,7 @@ function drawSafeRoute(start, end) {
 
   if (routeLayer) map.removeLayer(routeLayer);
 
-  let url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${OPENROUTESERVICE_KEY}`;
+  let url = "https://api.openrouteservice.org/v2/directions/driving-car";
 
 
   fetch(url, {
@@ -675,6 +674,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
