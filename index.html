@@ -202,6 +202,11 @@ function riskMessage(level) {
          level === 5 ? "Extreme hazard" :
          "Unknown";
 }
+// =========================
+// API CONFIG (from DIFF)
+// =========================
+const OPENROUTESERVICE_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImU0MGJmYjNiZDY2ODRhNTdiYTg1MTZkZmVlN2Q1Yzg2IiwiaCI6Im11cm11cjY0In0=";
+const OPENWEATHER_KEY = "384571a4172844344b2e6e07ca33c936";
 
 // =========================
 // MAP INIT
@@ -210,8 +215,6 @@ var map = L.map("map", {
   center: [31.9, 35.2],
   zoom: 12
 });
-
-let apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImU0MGJmYjNiZDY2ODRhNTdiYTg1MTZkZmVlN2Q1Yzg2IiwiaCI6Im11cm11cjY0In0=";
 
 // base layers
 lightTiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -235,7 +238,9 @@ map.locate({ setView: true, maxZoom: 14 });
 map.on("locationfound", e => {
   userLocation = e.latlng;
   L.marker(e.latlng).addTo(map).bindPopup("Your location");
-  userReportDiv.textContent = "Location detected.";
+  userReportDiv.textContent =
+  `Location detected: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
+
 });
 
 map.on("locationerror", () => {
@@ -653,6 +658,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
