@@ -534,7 +534,8 @@ document.getElementById("btnDark").onclick = function () {
 // LIVE WEATHER LAYER (PRECIPITATION)
 // =========================
 function loadWeather() {
-  let api = "YOUR_OWM_KEY"; // ← حطي مفتاح OpenWeatherMap
+  let api = "608cfc0da3cce986b0ef94fab240b5c1";
+
   let url = `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${api}`;
 
   if (weatherLayer) map.removeLayer(weatherLayer);
@@ -642,6 +643,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
