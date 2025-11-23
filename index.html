@@ -540,7 +540,7 @@ function loadWeather() {
 
   if (weatherLayer) map.removeLayer(weatherLayer);
 
-  weatherLayer = L.tileLayer(url, { opacity: 0.6 });
+  weatherLayer = L.tileLayer(url, { opacity: 1 });
   weatherLayer.addTo(map);
 }
 
@@ -643,6 +643,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
