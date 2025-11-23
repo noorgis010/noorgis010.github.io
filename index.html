@@ -1,309 +1,658 @@
-diff --git a/index.html b/index.html
-index 3dd95b4ae556a6061736169a7f1cf1da8cbb5fd0..29cd46499dd7104fbb02c200a2301ebdce7319e1 100644
---- a/index.html
-+++ b/index.html
-@@ -181,150 +181,164 @@ let lightTiles, darkTiles;
- let darkMode = false;
- 
- // =========================
- // HAZARD COLOR & MESSAGE
- // =========================
- function hazardColor(level) {
-   level = Number(level);
-   return level === 1 ? "#00cc44" :
-          level === 2 ? "#ffff33" :
-          level === 3 ? "#ff9933" :
-          level === 4 ? "#ff3300" :
-          level === 5 ? "#990000" :
-          "#555";
- }
- 
- function riskMessage(level) {
-   level = Number(level);
-   return level === 1 ? "Safe area" :
-          level === 2 ? "Low hazard" :
-          level === 3 ? "Moderate hazard" :
-          level === 4 ? "High hazard" :
-          level === 5 ? "Extreme hazard" :
-          "Unknown";
- }
- 
--// =========================
--// MAP INIT
--// =========================
--var map = L.map("map", {
--  center: [31.9, 35.2],
--  zoom: 12
--});
--
--let apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImU0MGJmYjNiZDY2ODRhNTdiYTg1MTZkZmVlN2Q1Yzg2IiwiaCI6Im11cm11cjY0In0=";
-+// =========================
-+// API CONFIG
-+// =========================
-+const OPENROUTESERVICE_KEY = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImU0MGJmYjNiZDY2ODRhNTdiYTg1MTZkZmVlN2Q1Yzg2IiwiaCI6Im11cm11cjY0In0=";
-+const OPENWEATHER_KEY = "384571a4172844344b2e6e07ca33c936";
-+
-+// =========================
-+// MAP INIT
-+// =========================
-+var map = L.map("map", {
-+  center: [31.9, 35.2],
-+  zoom: 12
-+});
- 
- // base layers
- lightTiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-   maxZoom: 19
- }).addTo(map);
- 
- darkTiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-   maxZoom: 19
- });
- 
- // disable default double-click zoom (we use it for route)
- map.doubleClickZoom.disable();
- 
- // =========================
- // USER LOCATION
- // =========================
- let userReportDiv = document.getElementById("userReport");
- 
--map.locate({ setView: true, maxZoom: 14 });
-+map.locate({ setView: true, maxZoom: 14 });
- 
--map.on("locationfound", e => {
--  userLocation = e.latlng;
--  L.marker(e.latlng).addTo(map).bindPopup("Your location");
--  userReportDiv.textContent = "Location detected.";
--});
--
--map.on("locationerror", () => {
--  userReportDiv.textContent = "Location not available.";
--});
-+map.on("locationfound", e => {
-+  userLocation = e.latlng;
-+  L.marker(e.latlng).addTo(map).bindPopup("Your location");
-+  userReportDiv.textContent = `Location detected: ${e.latlng.lat.toFixed(5)}, ${e.latlng.lng.toFixed(5)}`;
-+});
-+
-+map.on("locationerror", (err) => {
-+  console.error("Geolocation error", err);
-+  userReportDiv.textContent = "Location not available.";
-+});
- 
- // =========================
- // STYLE FUNCTIONS
- // =========================
- function styleRain10(feature) {
-   const gc = Number(feature.properties.gridcode);
-   const colors = {
-     1:"#e0f2ff",2:"#cce7ff",3:"#b3daff",4:"#99ccff",5:"#80bfff",
-     6:"#66b2ff",7:"#4da6ff",8:"#3399ff",9:"#1a8cff",10:"#0073e6"
-   };
-   return {
-     color: colors[gc] || "#004c99",
-     fillColor: colors[gc] || "#004c99",
-     fillOpacity: 0.55,
-     weight: 1
-   };
- }
- 
- function styleBasic(feature) {
-   return {
-     color: hazardColor(feature.properties.gridcode),
-     weight: 1,
-     fillOpacity: 0.45
-   };
- }
- 
- function popupGeneric(feature, layer) {
-   let p = feature.properties;
-   let html = "<b>Attributes:</b><br>";
-   for (let k in p) html += "<b>" + k + ":</b> " + p[k] + "<br>";
-   layer.bindPopup(html);
- }
- 
- // =========================
- // LAYERS CONTROL
- // =========================
- var layersControl = L.control.layers(null, {}, { collapsed: false }).addTo(map);
- 
- // =========================
- // LOAD LAYERS
- // =========================
--function loadLayer(file, styleFunc, label, assignTo, isRain) {
--  fetch(file).then(r => r.json()).then(data => {
--    window[assignTo] = L.geoJSON(data, {
--      style: isRain ? styleRain10 : styleFunc,
--      onEachFeature: popupGeneric
--    }).addTo(map);
--
--    layersControl.addOverlay(window[assignTo], label);
--
--    if (assignTo === "floodLayer") {
--      let safe = [];
--      data.features.forEach(f => {
--        let gc = Number(f.properties.gridcode);
--        if (gc === 1 || gc === 2) {
--          safe.push(turf.centroid(f));
--        }
--      });
--      floodSafePoints = turf.featureCollection(safe);
--    }
--  });
--}
-+function loadLayer(file, styleFunc, label, assignTo, isRain) {
-+  fetch(file)
-+    .then(r => {
-+      if (!r.ok) throw new Error(`Failed to load ${file}`);
-+      return r.json();
-+    })
-+    .then(data => {
-+      window[assignTo] = L.geoJSON(data, {
-+        style: isRain ? styleRain10 : styleFunc,
-+        onEachFeature: popupGeneric
-+      }).addTo(map);
-+
-+      layersControl.addOverlay(window[assignTo], label);
-+
-+      if (assignTo === "floodLayer") {
-+        let safe = [];
-+        data.features.forEach(f => {
-+          let gc = Number(f.properties.gridcode);
-+          if (gc === 1 || gc === 2) {
-+            safe.push(turf.centroid(f));
-+          }
-+        });
-+        floodSafePoints = turf.featureCollection(safe);
-+      }
-+    })
-+    .catch(err => {
-+      console.error(err);
-+      alert(`Error loading layer: ${label}`);
-+    });
-+}
- 
- // change filenames حسب ملفاتك الفعلية
- loadLayer("flood.json", styleBasic, "Flood", "floodLayer", false);
- loadLayer("Ramallh_zones.json", styleBasic, "Zones", "zonesLayer", false);
- loadLayer("elev.json", styleBasic, "Elevation", "elevLayer", false);
- loadLayer("slop.json", styleBasic, "Slope", "slopeLayer", false);
- loadLayer("flow_acu.json", styleBasic, "Flow Accumulation", "flowLayer", false);
- loadLayer("soil_new.json", styleBasic, "Soil", "soilLayer", false);
- loadLayer("rain.json", styleRain10, "Rainfall (10 levels)", "rainLayer", true);
- 
- // =========================
- // MAIN MAP CLICK HANDLER
- // =========================
- map.on("click", function(e) {
- 
-   // buffer click mode
-   if (waitingForBufferClick) {
-     waitingForBufferClick = false;
-     handleBufferClick(e);
-     return;
-   }
- 
-   // normal analysis click
-   let lat = e.latlng.lat.toFixed(6);
-   let lng = e.latlng.lng.toFixed(6);
-@@ -519,89 +533,85 @@ Report generated successfully.
- =================================
- `;
- 
-   console.log(rep);
-   alert("Emergency report created. افتحي الـ Console لعرض التفاصيل.");
- };
- 
- // =========================
- // DARK MODE
- // =========================
- document.getElementById("btnDark").onclick = function () {
-   if (darkMode) {
-     map.removeLayer(darkTiles);
-     if (!map.hasLayer(lightTiles)) map.addLayer(lightTiles);
-     darkMode = false;
-   } else {
-     map.removeLayer(lightTiles);
-     if (!map.hasLayer(darkTiles)) map.addLayer(darkTiles);
-     darkMode = true;
-   }
- };
- 
- // =========================
- // LIVE WEATHER LAYER
- // =========================
--function loadWeather() {
--  let api = "384571a4172844344b2e6e07ca33c936";
--
--  let url = `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${api}`;
-+function loadWeather() {
-+  let url = `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${OPENWEATHER_KEY}`;
- 
-   if (weatherLayer && map.hasLayer(weatherLayer)) {
-     map.removeLayer(weatherLayer);
-   }
- 
-   weatherLayer = L.tileLayer(url, { opacity: 1 });
-   weatherLayer.addTo(map);
- }
- 
- // تحميل أول مرة وبعدها تحديث كل 5 دقائق
- loadWeather();
- setInterval(loadWeather, 300000);
- 
- // =========================
- // MEASURE TOOL
- // =========================
- var measureControl = new L.Control.Measure({
-   primaryLengthUnit: "meters",
-   secondaryLengthUnit: "kilometers",
-   primaryAreaUnit: "sqmeters",
-   secondaryAreaUnit: "hectares"
- });
- measureControl.addTo(map);
- 
- // =========================
- // SAFE ROUTE FINDER
- // =========================
- function drawSafeRoute(start, end) {
-   if (!start || !end) return;
- 
-   if (routeLayer) map.removeLayer(routeLayer);
- 
--  let apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImU0MGJmYjNiZDY2ODRhNTdiYTg1MTZkZmVlN2Q1Yzg2IiwiaCI6Im11cm11cjY0In0=";
--
--  let url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}`;
-+  let url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${OPENROUTESERVICE_KEY}`;
- 
-   fetch(url, {
-     method: "POST",
-     headers: { "Content-Type": "application/json" },
-     body: JSON.stringify({
-       coordinates: [
-         [start.lng, start.lat],
-         [end.lng, end.lat]
-       ]
-     })
-   })
-   .then(res => res.json())
-   .then(json => {
-     if (!json.features || !json.features.length) {
-       alert("Failed to get route.");
-       return;
-     }
-     let coords = json.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
-     routeLayer = L.polyline(coords, {
-       color: "blue",
-       weight: 5
-     }).addTo(map);
-     map.fitBounds(routeLayer.getBounds());
-   })
-   .catch(() => {
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <title>Flood Hazard – Ramallah & Al-Bireh</title>
 
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+  <!-- Turf.js -->
+  <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
+  <!-- Leaflet Measure Tool -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-measure/dist/leaflet-measure.css" />
+  <script src="https://cdn.jsdelivr.net/npm/leaflet-measure/dist/leaflet-measure.min.js"></script>
 
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+    }
+
+    #sidebar {
+      width: 180px;
+      height: 100%;
+      background: #ffffff;
+      position: absolute;
+      right: 0;
+      top: 0;
+      overflow-y: auto;
+      padding: 10px;
+      box-shadow: -2px 0 5px rgba(0,0,0,0.2);
+      z-index: 1000;
+      font-size: 12px;
+    }
+
+    #map {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 180px;
+    }
+
+    #sidebar h3 {
+      text-align: center;
+      margin: 5px 0 8px 0;
+      font-size: 14px;
+    }
+
+    #sidebar h4 {
+      margin: 8px 0 4px 0;
+      font-size: 12px;
+    }
+
+    #btnHighlight, #btnReport, #btnBuffer, #btnDark {
+      width: 100%;
+      margin-top: 5px;
+      padding: 5px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    #btnHighlight { background: #007bff; color: white; }
+    #btnReport { background: #d9534f; color: white; }
+    #btnBuffer { background: #28a745; color: white; }
+    #btnDark { background: #333333; color: white; }
+
+    .legend {
+      background: white;
+      padding: 10px;
+      font-size: 12px;
+      border-radius: 10px;
+      box-shadow: 0 0 12px rgba(0,0,0,0.3);
+      line-height: 18px;
+      width: 170px;
+    }
+
+    .legend i {
+      width: 18px;
+      height: 18px;
+      float: left;
+      margin-right: 6px;
+    }
+
+    .north-arrow {
+      background: rgba(255,255,255,0.8);
+      padding: 4px;
+      border-radius: 6px;
+      box-shadow: 0 0 4px rgba(0,0,0,0.3);
+    }
+
+    .north-arrow img {
+      width: 36px;
+      height: auto;
+      display: block;
+    }
+
+    #bufferReport {
+      font-size: 11px;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+
+    #userReport {
+      font-size: 11px;
+      min-height: 20px;
+    }
+
+    input[type="number"] {
+      box-sizing: border-box;
+      font-size: 11px;
+    }
+
+    /* >>> أيقونة أداة القياس (Measure) <<< */
+    .leaflet-control-measure {
+      background-image: url('https://cdn-icons-png.flaticon.com/512/287/287980.png') !important;
+      background-size: 18px 18px !important;
+      background-repeat: no-repeat;
+      background-position: center center;
+      width: 30px !important;
+      height: 30px !important;
+    }
+  </style>
+</head>
+
+<body>
+
+<div id="sidebar">
+  <h3>Flood Hazard</h3>
+
+  <h4>Your Location</h4>
+  <div id="userReport">Waiting…</div>
+
+  <h4>Tools</h4>
+  <button id="btnHighlight">Highlight Extreme Flood Risk</button>
+  <button id="btnReport">Send Emergency Report</button>
+  <button id="btnDark">Toggle Dark Mode</button>
+
+  <h4>Buffer Tool</h4>
+  <input id="buffDist" type="number" style="width:100%" placeholder="Distance (m)">
+  <button id="btnBuffer">Create Buffer</button>
+
+  <h4>Safe Route</h4>
+  <div style="font-size:11px;">
+    دبل كليك على الخريطة لرسم طريق آمن من موقعك للنقطة المختارة.
+  </div>
+
+  <div id="bufferReport"></div>
+</div>
+
+<div id="map"></div>
+
+<script>
+// =========================
+// GLOBAL VARIABLES
+// =========================
+let userLocation = null;
+let lastAnalysis = null;
+
+let highlightActive = false;
+let floodHighlightLayer = null;
+
+let bufferLayer = null;
+let bufferCircle = null;
+let waitingForBufferClick = false;
+
+let floodLayer, zonesLayer, elevLayer, rainLayer, slopeLayer, soilLayer, flowLayer;
+let floodSafePoints = null;
+
+let routeLayer = null;
+let weatherLayer = null;
+
+let lightTiles, darkTiles;
+let darkMode = false;
+
+// =========================
+// HAZARD COLOR & MESSAGE
+// =========================
+function hazardColor(level) {
+  level = Number(level);
+  return level === 1 ? "#00cc44" :
+         level === 2 ? "#ffff33" :
+         level === 3 ? "#ff9933" :
+         level === 4 ? "#ff3300" :
+         level === 5 ? "#990000" :
+         "#555";
+}
+
+function riskMessage(level) {
+  level = Number(level);
+  return level === 1 ? "Safe area" :
+         level === 2 ? "Low hazard" :
+         level === 3 ? "Moderate hazard" :
+         level === 4 ? "High hazard" :
+         level === 5 ? "Extreme hazard" :
+         "Unknown";
+}
+
+// =========================
+// MAP INIT
+// =========================
+var map = L.map("map", {
+  center: [31.9, 35.2],
+  zoom: 12
+});
+
+let apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImU0MGJmYjNiZDY2ODRhNTdiYTg1MTZkZmVlN2Q1Yzg2IiwiaCI6Im11cm11cjY0In0=";
+
+// base layers
+lightTiles = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19
+}).addTo(map);
+
+darkTiles = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  maxZoom: 19
+});
+
+// disable default double-click zoom (we use it for route)
+map.doubleClickZoom.disable();
+
+// =========================
+// USER LOCATION
+// =========================
+let userReportDiv = document.getElementById("userReport");
+
+map.locate({ setView: true, maxZoom: 14 });
+
+map.on("locationfound", e => {
+  userLocation = e.latlng;
+  L.marker(e.latlng).addTo(map).bindPopup("Your location");
+  userReportDiv.textContent = "Location detected.";
+});
+
+map.on("locationerror", () => {
+  userReportDiv.textContent = "Location not available.";
+});
+
+// =========================
+// STYLE FUNCTIONS
+// =========================
+function styleRain10(feature) {
+  const gc = Number(feature.properties.gridcode);
+  const colors = {
+    1:"#e0f2ff",2:"#cce7ff",3:"#b3daff",4:"#99ccff",5:"#80bfff",
+    6:"#66b2ff",7:"#4da6ff",8:"#3399ff",9:"#1a8cff",10:"#0073e6"
+  };
+  return {
+    color: colors[gc] || "#004c99",
+    fillColor: colors[gc] || "#004c99",
+    fillOpacity: 0.55,
+    weight: 1
+  };
+}
+
+function styleBasic(feature) {
+  return {
+    color: hazardColor(feature.properties.gridcode),
+    weight: 1,
+    fillOpacity: 0.45
+  };
+}
+
+function popupGeneric(feature, layer) {
+  let p = feature.properties;
+  let html = "<b>Attributes:</b><br>";
+  for (let k in p) html += "<b>" + k + ":</b> " + p[k] + "<br>";
+  layer.bindPopup(html);
+}
+
+// =========================
+// LAYERS CONTROL
+// =========================
+var layersControl = L.control.layers(null, {}, { collapsed: false }).addTo(map);
+
+// =========================
+// LOAD LAYERS
+// =========================
+function loadLayer(file, styleFunc, label, assignTo, isRain) {
+  fetch(file).then(r => r.json()).then(data => {
+    window[assignTo] = L.geoJSON(data, {
+      style: isRain ? styleRain10 : styleFunc,
+      onEachFeature: popupGeneric
+    }).addTo(map);
+
+    layersControl.addOverlay(window[assignTo], label);
+
+    if (assignTo === "floodLayer") {
+      let safe = [];
+      data.features.forEach(f => {
+        let gc = Number(f.properties.gridcode);
+        if (gc === 1 || gc === 2) {
+          safe.push(turf.centroid(f));
+        }
+      });
+      floodSafePoints = turf.featureCollection(safe);
+    }
+  });
+}
+
+// change filenames حسب ملفاتك الفعلية
+loadLayer("flood.json", styleBasic, "Flood", "floodLayer", false);
+loadLayer("Ramallh_zones.json", styleBasic, "Zones", "zonesLayer", false);
+loadLayer("elev.json", styleBasic, "Elevation", "elevLayer", false);
+loadLayer("slop.json", styleBasic, "Slope", "slopeLayer", false);
+loadLayer("flow_acu.json", styleBasic, "Flow Accumulation", "flowLayer", false);
+loadLayer("soil_new.json", styleBasic, "Soil", "soilLayer", false);
+loadLayer("rain.json", styleRain10, "Rainfall (10 levels)", "rainLayer", true);
+
+// =========================
+// MAIN MAP CLICK HANDLER
+// =========================
+map.on("click", function(e) {
+
+  // buffer click mode
+  if (waitingForBufferClick) {
+    waitingForBufferClick = false;
+    handleBufferClick(e);
+    return;
+  }
+
+  // normal analysis click
+  let lat = e.latlng.lat.toFixed(6);
+  let lng = e.latlng.lng.toFixed(6);
+  let point = turf.point([lng, lat]);
+
+  let info = {};
+
+  function search(layer, name) {
+    if (!layer) return;
+    layer.eachLayer(lyr => {
+      let poly = lyr.toGeoJSON();
+      if (turf.booleanPointInPolygon(point, poly)) {
+        info[name] = poly.properties;
+      }
+    });
+  }
+
+  search(floodLayer, "Flood");
+  search(rainLayer, "Rainfall");
+  search(elevLayer, "Elevation");
+  search(slopeLayer, "Slope");
+  search(flowLayer, "Flow");
+  search(soilLayer, "Soil");
+  search(zonesLayer, "Zones");
+
+  let html = `<b>Location:</b><br>
+              Lat: ${lat}<br>
+              Lng: ${lng}<hr>`;
+
+  if (info.Flood) {
+    html += `<b>Flood risk:</b> ${info.Flood.gridcode}<br>`;
+    html += `<b>Recommendation:</b> ${riskMessage(info.Flood.gridcode)}<hr>`;
+  }
+
+  if (info.Rainfall) html += `Rainfall class: ${info.Rainfall.gridcode}<br>`;
+  if (info.Elevation) html += `Elevation class: ${info.Elevation.gridcode}<br>`;
+  if (info.Slope)     html += `Slope class: ${info.Slope.gridcode}<br>`;
+  if (info.Flow)      html += `Flow class: ${info.Flow.gridcode}<br>`;
+  if (info.Soil)      html += `Soil class: ${info.Soil.gridcode}<br>`;
+  if (info.Zones)     html += `Zone class: ${info.Zones.gridcode}<br>`;
+
+  L.popup().setLatLng(e.latlng).setContent(html).openOn(map);
+
+  lastAnalysis = { lat, lng, info };
+});
+
+// =========================
+// HIGHLIGHT EXTREME FLOOD RISK (TOGGLE)
+// =========================
+document.getElementById("btnHighlight").onclick = function () {
+
+  if (!floodLayer) {
+    alert("Flood layer not loaded yet.");
+    return;
+  }
+
+  if (highlightActive) {
+    if (floodHighlightLayer) {
+      map.removeLayer(floodHighlightLayer);
+    }
+    floodHighlightLayer = null;
+    highlightActive = false;
+    this.style.background = "#007bff";
+    return;
+  }
+
+  highlightActive = true;
+  this.style.background = "orange";
+
+  let extreme = floodLayer.toGeoJSON().features.filter(f => {
+    return Number(f.properties.gridcode) === 5;
+  });
+
+  floodHighlightLayer = L.geoJSON(extreme, {
+    style: {
+      color: "red",
+      weight: 3,
+      fillColor: "red",
+      fillOpacity: 0.35
+    }
+  }).addTo(map);
+};
+
+// =========================
+// BUFFER TOOL
+// =========================
+document.getElementById("btnBuffer").onclick = function () {
+  let dist = Number(document.getElementById("buffDist").value);
+  if (!dist) {
+    alert("Please enter buffer distance.");
+    return;
+  }
+  waitingForBufferClick = true;
+  alert("Click on the map to create buffer.");
+};
+
+function handleBufferClick(e) {
+  let dist = Number(document.getElementById("buffDist").value);
+  if (!dist) return;
+
+  let center = e.latlng;
+  let km = dist / 1000;
+
+  let pt = turf.point([center.lng, center.lat]);
+  let buff = turf.buffer(pt, km, { units: "kilometers" });
+
+  if (bufferLayer) map.removeLayer(bufferLayer);
+  if (bufferCircle) map.removeLayer(bufferCircle);
+
+  bufferCircle = L.circle(center, {
+    radius: dist,
+    color: "#0066ff",
+    fillOpacity: 0.15
+  }).addTo(map);
+
+  bufferLayer = L.geoJSON(buff, {
+    style: {
+      color: "#0066ff",
+      weight: 2,
+      fillOpacity: 0
+    }
+  }).addTo(map);
+
+  map.fitBounds(bufferCircle.getBounds());
+  analyseBuffer(buff, center, dist);
+}
+
+function analyseBuffer(buff, center, dist) {
+  let report = `<b>Buffer Analysis</b><br>
+  Center: ${center.lat.toFixed(5)}, ${center.lng.toFixed(5)}<br>
+  Distance: ${dist} m<hr>`;
+
+  function countInside(layer, name) {
+    if (!layer) return "";
+    let count = {};
+    layer.eachLayer(lyr => {
+      let f = lyr.toGeoJSON();
+      if (turf.booleanIntersects(buff, f)) {
+        let gc = f.properties.gridcode;
+        count[gc] = (count[gc] || 0) + 1;
+      }
+    });
+    return `<b>${name}:</b> ${JSON.stringify(count)}<br>`;
+  }
+
+  report += countInside(floodLayer, "Flood");
+  report += countInside(rainLayer, "Rainfall");
+  report += countInside(flowLayer, "Flow");
+  report += countInside(slopeLayer, "Slope");
+  report += countInside(elevLayer, "Elevation");
+  report += countInside(soilLayer, "Soil");
+  report += countInside(zonesLayer, "Zones");
+
+  document.getElementById("bufferReport").innerHTML = report;
+}
+
+// =========================
+// EMERGENCY REPORT
+// =========================
+document.getElementById("btnReport").onclick = function () {
+
+  if (!lastAnalysis) {
+    alert("اضغطي على الخريطة أولًا لتحديد موقع التحليل قبل إرسال التقرير.");
+    return;
+  }
+
+  let a = lastAnalysis;
+
+  let rep = `
+========== EMERGENCY FLOOD REPORT ==========
+Location:
+Lat: ${a.lat}
+Lng: ${a.lng}
+
+========= ANALYSIS =========
+`;
+
+  if (a.info.Flood) {
+    rep += `Flood Risk Level: ${a.info.Flood.gridcode}\n`;
+  }
+  if (a.info.Rainfall) rep += `Rainfall Class: ${a.info.Rainfall.gridcode}\n`;
+  if (a.info.Elevation) rep += `Elevation Class: ${a.info.Elevation.gridcode}\n`;
+  if (a.info.Slope)     rep += `Slope Class: ${a.info.Slope.gridcode}\n`;
+  if (a.info.Flow)      rep += `Flow Accumulation Class: ${a.info.Flow.gridcode}\n`;
+  if (a.info.Soil)      rep += `Soil Class: ${a.info.Soil.gridcode}\n`;
+  if (a.info.Zones)     rep += `Zone Class: ${a.info.Zones.gridcode}\n`;
+
+  rep += `
+============ SUMMARY ============
+Highlight active: ${highlightActive ? "YES" : "NO"}
+Report generated successfully.
+=================================
+`;
+
+  console.log(rep);
+  alert("Emergency report created. افتحي الـ Console لعرض التفاصيل.");
+};
+
+// =========================
+// DARK MODE
+// =========================
+document.getElementById("btnDark").onclick = function () {
+  if (darkMode) {
+    map.removeLayer(darkTiles);
+    if (!map.hasLayer(lightTiles)) map.addLayer(lightTiles);
+    darkMode = false;
+  } else {
+    map.removeLayer(lightTiles);
+    if (!map.hasLayer(darkTiles)) map.addLayer(darkTiles);
+    darkMode = true;
+  }
+};
+
+// =========================
+// LIVE WEATHER LAYER
+// =========================
+function loadWeather() {
+  let api = "384571a4172844344b2e6e07ca33c936";
+
+  let url = `https://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=${api}`;
+
+  if (weatherLayer && map.hasLayer(weatherLayer)) {
+    map.removeLayer(weatherLayer);
+  }
+
+  weatherLayer = L.tileLayer(url, { opacity: 1 });
+  weatherLayer.addTo(map);
+}
+
+// تحميل أول مرة وبعدها تحديث كل 5 دقائق
+loadWeather();
+setInterval(loadWeather, 300000);
+
+// =========================
+// MEASURE TOOL
+// =========================
+var measureControl = new L.Control.Measure({
+  primaryLengthUnit: "meters",
+  secondaryLengthUnit: "kilometers",
+  primaryAreaUnit: "sqmeters",
+  secondaryAreaUnit: "hectares"
+});
+measureControl.addTo(map);
+
+// =========================
+// SAFE ROUTE FINDER
+// =========================
+function drawSafeRoute(start, end) {
+  if (!start || !end) return;
+
+  if (routeLayer) map.removeLayer(routeLayer);
+
+  let apiKey = "eyJvcmciOiI1YjNjZTM1OTc4NTExMTAwMDFjZjYyNDgiLCJpZCI6ImU0MGJmYjNiZDY2ODRhNTdiYTg1MTZkZmVlN2Q1Yzg2IiwiaCI6Im11cm11cjY0In0=";
+
+  let url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=${apiKey}`;
+
+  fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      coordinates: [
+        [start.lng, start.lat],
+        [end.lng, end.lat]
+      ]
+    })
+  })
+  .then(res => res.json())
+  .then(json => {
+    if (!json.features || !json.features.length) {
+      alert("Failed to get route.");
+      return;
+    }
+    let coords = json.features[0].geometry.coordinates.map(c => [c[1], c[0]]);
+    routeLayer = L.polyline(coords, {
+      color: "blue",
+      weight: 5
+    }).addTo(map);
+    map.fitBounds(routeLayer.getBounds());
+  })
+  .catch(() => {
+    alert("Error calling routing service.");
+  });
+}
+
+map.on("dblclick", function(e) {
+  if (!userLocation) {
+    alert("User location not detected yet.");
+    return;
+  }
+  drawSafeRoute(userLocation, e.latlng);
+  alert("Safe route generated (blue line).");
+});
+
+// =========================
+// LEGEND
+// =========================
+var legend = L.control({ position: "bottomleft" });
+
+legend.onAdd = function () {
+  var div = L.DomUtil.create("div", "legend");
+  div.innerHTML = "<b>Flood Hazard Levels</b><br>";
+  div.innerHTML += '<i style="background:#00cc44"></i> Level 1<br>';
+  div.innerHTML += '<i style="background:#ffff33"></i> Level 2<br>';
+  div.innerHTML += '<i style="background:#ff9933"></i> Level 3<br>';
+  div.innerHTML += '<i style="background:#ff3300"></i> Level 4<br>';
+  div.innerHTML += '<i style="background:#990000"></i> Level 5<br>';
+  return div;
+};
+legend.addTo(map);
+
+// =========================
+// NORTH ARROW
+// =========================
+var north = L.control({ position: "topleft" });
+
+north.onAdd = function () {
+  var div = L.DomUtil.create("div", "north-arrow");
+  div.innerHTML = `
+    <img src="https://cdn-icons-png.flaticon.com/512/54/54706.png">
+  `;
+  return div;
+};
+north.addTo(map);
+
+</script>
+
+</body>
+</html>
 
 
 
