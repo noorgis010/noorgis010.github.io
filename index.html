@@ -334,56 +334,64 @@ loadLayer("rain.json", styleRain10, "Rainfall (10 levels)", "rainLayer", true);
 // MAIN MAP CLICK HANDLER
 // =========================
 map.on("click", function(e) {
-  // If waiting for buffer click → skip popup and only do buffer
-   if (waitingForBufferClick) {
-       handleBufferClick(e);
-    return;
- 
-  // normal analysis click
-  let lat = e.latlng.lat.toFixed(6);
-  let lng = e.latlng.lng.toFixed(6);
-  let point = turf.point([lng, lat]);
 
-  let info = {};
+    // BUFFER CLICK MODE
+    if (waitingForBufferClick) {
+        waitingForBufferClick = false;
+        handleBufferClick(e);
+        return;
+    }
 
-  function search(layer, name) {
-    if (!layer) return;
-    layer.eachLayer(lyr => {
-      let poly = lyr.toGeoJSON();
-      if (turf.booleanPointInPolygon(point, poly)) {
-         info[name] = poly.properties;
-      }
-    });
-  }
+    // NORMAL ANALYSIS CLICK
+    let lat = e.latlng.lat.toFixed(6);
+    let lng = e.latlng.lng.toFixed(6);
+    let point = turf.point([lng, lat]);
 
-  search(floodLayer, "Flood");
-  search(rainLayer, "Rainfall");
-  search(elevLayer, "Elevation");
-  search(slopeLayer, "Slope");
-  search(flowLayer, "Flow");
-  search(soilLayer, "Soil");
-  search(zonesLayer, "Zones");
+    let info = {};
 
-  let html = `<b>Location:</b><br>
-              Lat: ${lat}<br>
-              Lng: ${lng}<hr>`;
+    function search(layer, name) {
+        if (!layer) return;
+        layer.eachLayer(lyr => {
+            let poly = lyr.toGeoJSON();
+            if (turf.booleanPointInPolygon(point, poly)) {
+                info[name] = poly.properties;
+            }
+        });
+    }
 
-  if (info.Flood) {
-    html += `<b>Flood risk:</b> ${info.Flood.gridcode}<br>`;
-    html += `<b>Recommendation:</b> ${riskMessage(info.Flood.gridcode)}<hr>`;
-  }
+    search(floodLayer, "Flood");
+    search(rainLayer, "Rainfall");
+    search(elevLayer, "Elevation");
+    search(slopeLayer, "Slope");
+    search(flowLayer, "Flow");
+    search(soilLayer, "Soil");
+    search(zonesLayer, "Zones");
 
-  if (info.Rainfall) html += `Rainfall class: ${info.Rainfall.gridcode}<br>`;
-  if (info.Elevation) html += `Elevation class: ${info.Elevation.gridcode}<br>`;
-  if (info.Slope)     html += `Slope class: ${info.Slope.gridcode}<br>`;
-  if (info.Flow)      html += `Flow class: ${info.Flow.gridcode}<br>`;
-  if (info.Soil)      html += `Soil class: ${info.Soil.gridcode}<br>`;
-  if (info.Zones)     html += `Zone class: ${info.Zones.gridcode}<br>`;
+    let html = `<b>Location:</b><br>
+                Lat: ${lat}<br>
+                Lng: ${lng}<hr>`;
 
-  L.popup().setLatLng(e.latlng).setContent(html).openOn(map);
+    if (info.Flood) {
+        html += `<b>Flood risk:</b> ${info.Flood.gridcode}<br>`;
+        html += `<b>Recommendation:</b> ${riskMessage(info.Flood.gridcode)}<hr>`;
+    }
 
-  lastAnalysis = { lat, lng, info };
+    if (info.Rainfall) html += `Rainfall class: ${info.Rainfall.gridcode}<br>`;
+    if (info.Elevation) html += `Elevation class: ${info.Elevation.gridcode}<br>`;
+    if (info.Slope)     html += `Slope class: ${info.Slope.gridcode}<br>`;
+    if (info.Flow)      html += `Flow class: ${info.Flow.gridcode}<br>`;
+    if (info.Soil)      html += `Soil class: ${info.Soil.gridcode}<br>`;
+    if (info.Zones)     html += `Zone class: ${info.Zones.gridcode}<br>`;
+
+    L.popup()
+      .setLatLng(e.latlng)
+      .setContent(html)
+      .openOn(map);
+
+    lastAnalysis = { lat, lng, info };
+
 });
+
 
 // =========================
 // HIGHLIGHT EXTREME FLOOD RISK (TOGGLE)
@@ -671,6 +679,7 @@ north.addTo(map);
 
 </body>
 </html>
+
 
 
 
