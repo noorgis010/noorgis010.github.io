@@ -69,7 +69,7 @@ function floodStyle(feature) {
 }
 
 function zonesStyle() {
-  return { color: "#ffffff", weight: 1.2, fillOpacity: 0 };
+  return { color: "#2c3e50", weight: 1.5, fillOpacity: 0,dashArray: "4,2" };
 }
 
 function roadsStyle() {
