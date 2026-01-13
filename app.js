@@ -52,7 +52,7 @@ function resetAll() {
   startLatLng = null;
   endLatLng = null;
   clearRoute();
-  showStatus("اختاري نقطة البداية ثم نقطة النهاية على الخريطة.");
+  showStatus("اختار نقطة البداية ثم نقطة النهاية على الخريطة.");
 }
 
 // ---------- Flood styling ----------
@@ -167,12 +167,12 @@ function drawRoute(routeGeojson, isSafe = true) {
 
 async function calculateSafeRoute() {
   if (!startLatLng || !endLatLng) {
-    alert("لازم تختاري نقطتين: البداية والنهاية.");
+    alert("يجب اختيار نقطتين: البداية والنهاية.");
     return;
   }
 
   if (!floodDataGlobal) {
-    alert("طبقة الخطورة لم تُحمّل بعد انتظرثواني");
+    alert("طبقة الخطورة لم تُحمّل بعد انتظر ثواني");
     return;
   }
 
