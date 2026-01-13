@@ -160,7 +160,7 @@ function drawRoute(routeGeojson, isSafe = true) {
 
 async function calculateSafeRoute() {
   if (!startLatLng || !endLatLng) {
-    alert("لازم تختاري نقطتين: البداية والنهاية.");
+    alert("لازم تختار نقطتين: البداية والنهاية.");
     return;
   }
 
