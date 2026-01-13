@@ -65,3 +65,12 @@ button{
 }
 .legend .row{ display:flex; align-items:center; gap:8px; margin:4px 0; }
 .legend .swatch{ width:14px; height:14px; border-radius: 3px; border:1px solid #999; }
+.zone-label {
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
