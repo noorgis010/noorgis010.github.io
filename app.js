@@ -261,7 +261,21 @@ async function loadLayers() {
     // Zones
     try {
       const zonesData = await loadGeoJSON("Ramallh_zones.json");
-      zonesLayer = L.geoJSON(zonesData, { style: zonesStyle }).addTo(map);
+      zonesLayer = L.geoJSON(zonesData, {
+  style: zonesStyle,
+  onEachFeature: function (feature, layer) {
+    const name = feature.properties?.Name_Engli;
+
+    if (name) {
+      layer.bindTooltip(name, {
+        permanent: false,   // خليها false مبدئيًا
+        direction: "center",
+        className: "zone-label"
+      });
+    }
+  }
+}).addTo(map);
+
     } catch (e) {
       console.warn("Zones not loaded:", e);
     }
