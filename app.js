@@ -3,6 +3,10 @@
    Noor GIS Project
    =============================== */
 
+// IMPORTANT:
+// - ORS_API_KEY must be defined ONLY in config.js (not here)
+//   Example: const ORS_API_KEY = "xxxx";
+
 let map;
 let baseLayer;
 
@@ -17,152 +21,184 @@ let startLatLng = null;
 let endLatLng = null;
 
 // ---------- Helpers ----------
-function $(id){ return document.getElementById(id); }
+function $(id) {
+  return document.getElementById(id);
+}
 
-function showStatus(msg){
+function showStatus(msg) {
   const el = $("statusBox");
   if (el) el.textContent = msg;
 }
 
-// ألوان حسب gridcode (1..5)
-function getFloodColor(gridcode){
-  const v = Number(gridcode);
-  if (v === 1) return "#2ca25f";
-  if (v === 2) return "#66c2a4";
-  if (v === 3) return "#fee08b";
-  if (v === 4) return "#f46d43";
-  return "#d73027";
+function clearRoute() {
+  if (routeLayer) {
+    map.removeLayer(routeLayer);
+    routeLayer = null;
+  }
 }
 
-function floodStyle(feature){
-  const g = feature?.properties?.gridcode;
-  return { color:"#444", weight:0.5, fillColor:getFloodColor(g), fillOpacity:0.65 };
-}
-function zonesStyle(){ return { color:"#ffffff", weight:1.2, fillOpacity:0 }; }
-function roadsStyle(){ return { color:"#ffffff", weight:2, opacity:0.7 }; }
-
-function clearRoute(){
-  if(routeLayer){ map.removeLayer(routeLayer); routeLayer = null; }
-}
-
-function resetAll(){
-  if(startMarker) map.removeLayer(startMarker);
-  if(endMarker) map.removeLayer(endMarker);
-  startMarker = null; endMarker = null;
-  startLatLng = null; endLatLng = null;
+function resetAll() {
+  if (startMarker) map.removeLayer(startMarker);
+  if (endMarker) map.removeLayer(endMarker);
+  startMarker = null;
+  endMarker = null;
+  startLatLng = null;
+  endLatLng = null;
   clearRoute();
   showStatus("اختاري نقطة البداية ثم نقطة النهاية على الخريطة.");
 }
 
-// ---------- ORS ----------
-async function fetchORSRoute(start, end, avoidGeometry=null){
+// ---------- Flood styling ----------
+function getFloodColor(gridcode) {
+  const v = Number(gridcode);
+  if (v === 1) return "#2ca25f"; // منخفضة جدًا
+  if (v === 2) return "#66c2a4"; // منخفضة
+  if (v === 3) return "#fee08b"; // متوسطة
+  if (v === 4) return "#f46d43"; // عالية
+  return "#d73027";              // عالية جدًا (5)
+}
+
+function floodStyle(feature) {
+  const g = feature?.properties?.gridcode;
+  return {
+    color: "#2b2b2b",
+    weight: 0.4,
+    fillColor: getFloodColor(g),
+    fillOpacity: 0.65
+  };
+}
+
+function zonesStyle() {
+  return { color: "#ffffff", weight: 1.2, fillOpacity: 0 };
+}
+
+function roadsStyle() {
+  return { color: "#ffffff", weight: 2, opacity: 0.7 };
+}
+
+// ---------- ORS helpers ----------
+
+// ORS expects avoid_polygons as a GEOMETRY (Polygon/MultiPolygon), not FeatureCollection.
+// We'll convert high-risk flood features (gridcode >=4) into one MultiPolygon geometry.
+function buildAvoidPolygonsGeometry(floodFC) {
+  if (!floodFC?.features?.length) return null;
+
+  const highs = floodFC.features.filter(f => Number(f?.properties?.gridcode) >= 4);
+  if (!highs.length) return null;
+
+  const multiCoords = [];
+
+  for (const f of highs) {
+    const geom = f?.geometry;
+    if (!geom) continue;
+
+    if (geom.type === "Polygon") {
+      // Polygon.coordinates = [ [ring1], [ring2]... ]
+      multiCoords.push(geom.coordinates);
+    } else if (geom.type === "MultiPolygon") {
+      // MultiPolygon.coordinates = [ [ [ring]... ], [ [ring]... ] ... ]
+      for (const poly of geom.coordinates) multiCoords.push(poly);
+    }
+  }
+
+  if (!multiCoords.length) return null;
+
+  return { type: "MultiPolygon", coordinates: multiCoords };
+}
+
+async function fetchORSRoute(start, end, avoidGeometry = null) {
   const url = "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
 
+  // radiuses: increase snap radius to reduce "could not find routable point within 350m"
   const body = {
     coordinates: [
       [start.lng, start.lat],
       [end.lng, end.lat]
-    ]
+    ],
+    radiuses: [2000, 2000] // meters (زيديها لو لسه بطلع 404)
   };
 
-  // ORS بتحب geometry أكثر من FeatureCollection
-  if (avoidGeometry){
+  if (avoidGeometry) {
     body.options = { avoid_polygons: avoidGeometry };
+  }
+
+  // Validate key exists
+  if (typeof ORS_API_KEY === "undefined" || !ORS_API_KEY) {
+    throw new Error("ORS_API_KEY is missing. Put it in config.js فقط.");
   }
 
   const res = await fetch(url, {
     method: "POST",
     headers: {
-      "Authorization": ORS_API_KEY,
+      Authorization: ORS_API_KEY,
       "Content-Type": "application/json"
     },
     body: JSON.stringify(body)
   });
 
-  if(!res.ok){
-    const t = await res.text().catch(()=> "");
+  if (!res.ok) {
+    const t = await res.text().catch(() => "");
     throw new Error(`ORS Error ${res.status}: ${t}`);
   }
+
   return await res.json();
 }
 
-// نحول مناطق gridcode 4-5 لـ MultiPolygon Geometry
-function buildHighRiskAvoidGeometry(fc){
-  if(!fc?.features?.length) return null;
-
-  const coords = [];
-  for(const f of fc.features){
-    const g = Number(f?.properties?.gridcode);
-    if(g < 4) continue;
-
-    const geom = f.geometry;
-    if(!geom) continue;
-
-    if(geom.type === "Polygon"){
-      coords.push(geom.coordinates);
-    } else if(geom.type === "MultiPolygon"){
-      for(const poly of geom.coordinates) coords.push(poly);
-    }
-  }
-
-  if(!coords.length) return null;
-
-  return { type: "MultiPolygon", coordinates: coords };
-}
-
-function drawRoute(routeGeojson, isSafe=true){
+function drawRoute(routeGeojson, isSafe = true) {
   clearRoute();
+
   routeLayer = L.geoJSON(routeGeojson, {
-    style: { color: isSafe ? "#00ffd5" : "#ffcc00", weight: 5, opacity: 0.9 }
+    style: {
+      color: isSafe ? "#00ffd5" : "#ffcc00",
+      weight: 5,
+      opacity: 0.9
+    }
   }).addTo(map);
 
-  map.fitBounds(routeLayer.getBounds(), { padding:[30,30] });
+  map.fitBounds(routeLayer.getBounds(), { padding: [30, 30] });
 }
 
-// ---------- Routing Logic ----------
-async function calculateSafeRoute(){
-  if(!startLatLng || !endLatLng){
+async function calculateSafeRoute() {
+  if (!startLatLng || !endLatLng) {
     alert("لازم تختاري نقطتين: البداية والنهاية.");
     return;
   }
-  if(!floodDataGlobal){
-    alert("طبقة الخطورة (flood) لم تُحمّل بعد. انتظري ثواني وحاولي.");
+
+  if (!floodDataGlobal) {
+    alert("طبقة الخطورة (flood) لم تُحمّل بعد. استني ثواني وجربي.");
     return;
   }
 
-  showStatus("جاري حساب المسار...");
+  showStatus("جاري حساب المسار الآمن...");
 
-  const avoidGeom = buildHighRiskAvoidGeometry(floodDataGlobal);
+  const avoidGeom = buildAvoidPolygonsGeometry(floodDataGlobal);
 
-  // 1) جرّب مسار يتجنب مناطق 4-5
-  if(avoidGeom){
-    try{
-      const safe = await fetchORSRoute(startLatLng, endLatLng, avoidGeom);
-      drawRoute(safe, true);
-      showStatus("✅ تم إيجاد مسار يتجنب مناطق الخطورة العالية قدر الإمكان.");
-      return;
-    }catch(e){
-      console.warn("Safe (avoid) route failed:", e);
-      // نكمل لمسار عادي
+  try {
+    // 1) Safe route (avoid high risk)
+    const safeRoute = await fetchORSRoute(startLatLng, endLatLng, avoidGeom);
+    drawRoute(safeRoute, true);
+    showStatus("✅ تم إيجاد مسار آمن يتجنب مناطق الخطورة العالية قدر الإمكان.");
+  } catch (e) {
+    console.warn("Safe route failed:", e);
+
+    try {
+      // 2) Fallback: normal route
+      const normalRoute = await fetchORSRoute(startLatLng, endLatLng, null);
+      drawRoute(normalRoute, false);
+      showStatus("⚠️ تعذّر تجنب مناطق الخطر بالكامل. تم عرض أفضل مسار متاح.");
+    } catch (e2) {
+      console.error("Normal route failed:", e2);
+      showStatus("❌ فشل حساب المسار. تأكدي من المفتاح/الإنترنت/اختيار نقاط قرب الطرق.");
+      alert("فشل حساب المسار. افتحي Console (F12) وشوفي الخطأ.");
     }
-  }
-
-  // 2) مسار عادي إذا ما في avoid أو avoid فشل
-  try{
-    const normal = await fetchORSRoute(startLatLng, endLatLng, null);
-    drawRoute(normal, false);
-    showStatus("⚠️ تم عرض مسار عادي (قد يمر بمناطق خطرة).");
-  }catch(e2){
-    console.error("Normal route failed:", e2);
-    showStatus("❌ فشل حساب المسار. تأكدي من مفتاح ORS أو الإنترنت.");
-    alert("فشل حساب المسار. افتحي Console (F12) وشوفي الخطأ.");
   }
 }
 
-// ---------- Controls ----------
-function addTopLeftControls(){
-  const control = L.control({ position:"topleft" });
-  control.onAdd = function(){
+// ---------- UI controls ----------
+function addTopLeftControls() {
+  const control = L.control({ position: "topleft" });
+
+  control.onAdd = function () {
     const div = L.DomUtil.create("div", "map-controls");
     div.style.display = "flex";
     div.style.gap = "8px";
@@ -170,29 +206,35 @@ function addTopLeftControls(){
     const resetBtn = L.DomUtil.create("button", "btn", div);
     resetBtn.textContent = "Reset";
     resetBtn.style.padding = "6px 10px";
+    resetBtn.style.cursor = "pointer";
 
     const calcBtn = L.DomUtil.create("button", "btn", div);
     calcBtn.textContent = "احسب المسار";
     calcBtn.style.padding = "6px 10px";
+    calcBtn.style.cursor = "pointer";
 
     L.DomEvent.disableClickPropagation(div);
-    resetBtn.onclick = resetAll;
-    calcBtn.onclick = calculateSafeRoute;
+
+    resetBtn.onclick = () => resetAll();
+    calcBtn.onclick = () => calculateSafeRoute();
+
     return div;
   };
+
   control.addTo(map);
 }
 
-// ---------- Legend ----------
-function addLegend(){
-  const legend = L.control({ position:"bottomright" });
-  legend.onAdd = function(){
+function addLegend() {
+  const legend = L.control({ position: "bottomright" });
+
+  legend.onAdd = function () {
     const div = L.DomUtil.create("div", "legend");
     div.style.background = "rgba(255,255,255,0.92)";
     div.style.padding = "10px 12px";
     div.style.borderRadius = "10px";
     div.style.lineHeight = "1.6";
     div.style.fontSize = "13px";
+
     div.innerHTML = `
       <b>مفتاح الخطورة (gridcode)</b><br/>
       <div><span style="display:inline-block;width:14px;height:14px;background:#2ca25f;margin-left:6px;border:1px solid #555"></span>(1) منخفضة جدًا</div>
@@ -203,110 +245,124 @@ function addLegend(){
     `;
     return div;
   };
+
   legend.addTo(map);
 }
 
-// ---------- Load ----------
-async function loadGeoJSON(url){
-  const res = await fetch(url);
-  if(!res.ok) throw new Error("Failed to load " + url);
+// ---------- Map + Layers ----------
+async function loadGeoJSON(url) {
+  const res = await fetch(url, { cache: "no-store" }); // يساعد ضد الكاش
+  if (!res.ok) throw new Error("Failed to load " + url);
   return await res.json();
 }
 
-async function loadLayers(){
-  try{
-    // Zones (اختياري)
-    try{
+async function loadLayers() {
+  try {
+    // Zones
+    try {
       const zonesData = await loadGeoJSON("Ramallh_zones.json");
       zonesLayer = L.geoJSON(zonesData, { style: zonesStyle }).addTo(map);
-    }catch(e){ console.warn("Zones not loaded:", e); }
+    } catch (e) {
+      console.warn("Zones not loaded:", e);
+    }
 
-    // Roads (اختياري)
-    try{
+    // Roads
+    try {
       const roadsData = await loadGeoJSON("Roads.json");
       roadsLayer = L.geoJSON(roadsData, { style: roadsStyle }).addTo(map);
-    }catch(e){ console.warn("Roads not loaded:", e); }
+    } catch (e) {
+      console.warn("Roads not loaded:", e);
+    }
 
-    // Flood (أساسي)
+    // Flood (main)
     const floodData = await loadGeoJSON("flood.json");
     floodDataGlobal = floodData;
+
     floodLayer = L.geoJSON(floodData, { style: floodStyle }).addTo(map);
 
-    // زوم تلقائي على منطقة الدراسة
-    map.fitBounds(floodLayer.getBounds(), { padding:[20,20] });
+    // Zoom directly to study area (fix "world view")
+    map.fitBounds(floodLayer.getBounds(), { padding: [20, 20] });
 
     // Layer control
     const overlays = {};
-    if(roadsLayer) overlays["الطرق"] = roadsLayer;
-    if(zonesLayer) overlays["المحافظة"] = zonesLayer;
-    if(floodLayer) overlays["مؤشر الخطورة (flood)"] = floodLayer;
+    if (roadsLayer) overlays["الطرق"] = roadsLayer;
+    if (zonesLayer) overlays["المحافظة"] = zonesLayer;
+    if (floodLayer) overlays["مؤشر الخطورة (flood)"] = floodLayer;
 
-    L.control.layers({ "OSM": baseLayer }, overlays, { collapsed:true }).addTo(map);
+    L.control.layers({ "OSM": baseLayer }, overlays, { collapsed: true }).addTo(map);
 
-  }catch(err){
+    showStatus("اختاري نقطة البداية ثم نقطة النهاية على الخريطة.");
+
+  } catch (err) {
     console.error(err);
     alert("في مشكلة بتحميل الملفات. تأكدي من أسماء الملفات داخل GitHub وأنهم نفس الاسم تمامًا.");
   }
 }
 
-// ---------- Map Init ----------
-function initMap(){
-  // مهم: worldCopyJump يمنع “عالم مكرر” عند السحب
-  map = L.map("map", { zoomControl:true, worldCopyJump:true }).setView([31.9038, 35.2034], 11);
+function initMap() {
+  map = L.map("map", { zoomControl: true }).setView([31.9038, 35.2034], 11);
 
+  // Base layer once + noWrap to avoid repeated worlds
   baseLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
-    attribution: "&copy; OpenStreetMap"
+    attribution: "&copy; OpenStreetMap",
+    noWrap: true
   }).addTo(map);
 
-  showStatus("اختاري نقطة البداية ثم نقطة النهاية على الخريطة.");
   addTopLeftControls();
   addLegend();
   loadLayers();
 
-  // اختيار نقطتين
+  // Pick start/end points
   map.on("click", (e) => {
-    if(!startLatLng){
+    if (!startLatLng) {
       startLatLng = e.latlng;
-      startMarker = L.marker(startLatLng, { draggable:true }).addTo(map).bindPopup("Start").openPopup();
-      startMarker.on("dragend", ()=>{
+      startMarker = L.marker(startLatLng, { draggable: true })
+        .addTo(map)
+        .bindPopup("Start")
+        .openPopup();
+
+      startMarker.on("dragend", () => {
         startLatLng = startMarker.getLatLng();
         clearRoute();
         showStatus('تم تعديل نقطة البداية. اضغطي "احسب المسار".');
       });
+
       showStatus("اختاري نقطة النهاية.");
       return;
     }
 
-    if(!endLatLng){
+    if (!endLatLng) {
       endLatLng = e.latlng;
-      endMarker = L.marker(endLatLng, { draggable:true }).addTo(map).bindPopup("End").openPopup();
-      endMarker.on("dragend", ()=>{
+      endMarker = L.marker(endLatLng, { draggable: true })
+        .addTo(map)
+        .bindPopup("End")
+        .openPopup();
+
+      endMarker.on("dragend", () => {
         endLatLng = endMarker.getLatLng();
         clearRoute();
         showStatus('تم تعديل نقطة النهاية. اضغطي "احسب المسار".');
       });
+
       showStatus('جاهزة ✅ اضغطي "احسب المسار".');
       return;
     }
 
-    // تحديث النهاية
+    // Third click updates end point
     endLatLng = e.latlng;
-    endMarker.setLatLng(endLatLng);
+    if (endMarker) endMarker.setLatLng(endLatLng);
     clearRoute();
     showStatus('تم تحديث نقطة النهاية. اضغطي "احسب المسار".');
   });
 }
 
-// ---------- Status Box ----------
-function ensureStatusBox(){
-  if($("statusBox")) return;
+// ---------- Landing / Status ----------
+function ensureStatusBox() {
+  if ($("statusBox")) return;
 
-  const mapDiv = $("map");
-  if(!mapDiv) return;
-
-  const parent = mapDiv.parentElement || mapDiv;
-  parent.style.position = "relative";
+  const mapEl = $("map");
+  if (!mapEl) return;
 
   const box = document.createElement("div");
   box.id = "statusBox";
@@ -323,41 +379,52 @@ function ensureStatusBox(){
   box.style.lineHeight = "1.6";
   box.textContent = "جاري التحميل...";
 
-  parent.appendChild(box);
+  const parent = mapEl.parentElement;
+  if (parent) parent.style.position = "relative";
+  parent?.appendChild(box);
 }
 
-// ---------- Landing ----------
-function setupLandingIfExists(){
+function setupLandingIfExists() {
   const landing = $("landing");
   const startBtn = $("startBtn");
   const howBtn = $("howBtn");
   const howText = $("howText");
-  const mapWrap = $("mapWrap");
 
-  // إذا ما في landing، افتح مباشرة
-  if(!landing || !startBtn || !mapWrap){
+  // IMPORTANT: some templates hide/show #mapWrap not #map
+  const mapWrap = $("mapWrap");
+  const mapEl = $("map");
+
+  // No landing? run map directly
+  if (!landing || !startBtn || !mapEl) {
     initMap();
     return;
   }
 
-  mapWrap.style.display = "none";
+  // hide map container at start
+  if (mapWrap) mapWrap.style.display = "none";
+  else mapEl.style.display = "none";
 
-  if(howBtn && howText){
-    howBtn.addEventListener("click", ()=>{
+  if (howBtn && howText) {
+    howBtn.addEventListener("click", () => {
       howText.style.display = (howText.style.display === "none") ? "block" : "none";
     });
   }
 
-  startBtn.addEventListener("click", ()=>{
+  startBtn.addEventListener("click", () => {
     landing.style.display = "none";
-    mapWrap.style.display = "block";
+    if (mapWrap) mapWrap.style.display = "block";
+    else mapEl.style.display = "block";
+
     initMap();
-    setTimeout(()=> map.invalidateSize(), 200);
+
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
   });
 }
 
 // ---------- Start ----------
-window.addEventListener("DOMContentLoaded", ()=>{
+window.addEventListener("DOMContentLoaded", () => {
   ensureStatusBox();
   setupLandingIfExists();
 });
