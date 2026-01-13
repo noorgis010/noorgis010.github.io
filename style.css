@@ -31,7 +31,7 @@ button{
 #map { height: 100%; }
 
 #topbar{
-  position: absolute; top: 12px; right: 80px;
+  position: absolute; top: 12px; right: 120px;
   left: 100;
   z-index: 1000;
   display: flex; gap: 10px; flex-wrap: wrap;
