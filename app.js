@@ -21,6 +21,13 @@ let startLatLng = null;
 let endLatLng = null;
 
 // ---------- Helpers ----------
+function getInputLatLng() {
+  const lat = parseFloat(document.getElementById("latInput")?.value);
+  const lng = parseFloat(document.getElementById("lngInput")?.value);
+  if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
+  return L.latLng(lat, lng);
+}
+
 function $(id) {
   return document.getElementById(id);
 }
@@ -165,7 +172,7 @@ async function calculateSafeRoute() {
   }
 
   if (!floodDataGlobal) {
-    alert("طبقة الخطورة (flood) لم تُحمّل بعد. استني ثواني وجربي.");
+    alert("طبقة الخطورة لم تُحمّل بعد انتظرثواني");
     return;
   }
 
@@ -177,7 +184,14 @@ async function calculateSafeRoute() {
     // 1) Safe route (avoid high risk)
     const safeRoute = await fetchORSRoute(startLatLng, endLatLng, avoidGeom);
     drawRoute(safeRoute, true);
-    showStatus("✅ تم إيجاد مسار آمن يتجنب مناطق الخطورة العالية قدر الإمكان.");
+     const meters = safeRoute?.features?.[0]?.properties?.summary?.distance;
+if (meters != null) {
+  const km = (meters / 1000).toFixed(2);
+  showStatus(`✅ تم إيجاد مسار آمن. طول المسار: ${meters.toFixed(0)} م (${km} كم)`);
+  const msg = document.getElementById("msg");
+  if (msg) { msg.style.display = "block"; msg.textContent = `طول المسار: ${meters.toFixed(0)} م (${km} كم)`; }
+}
+
   } catch (e) {
     console.warn("Safe route failed:", e);
 
@@ -185,7 +199,14 @@ async function calculateSafeRoute() {
       // 2) Fallback: normal route
       const normalRoute = await fetchORSRoute(startLatLng, endLatLng, null);
       drawRoute(normalRoute, false);
-      showStatus("⚠️ تعذّر تجنب مناطق الخطر بالكامل. تم عرض أفضل مسار متاح.");
+      const meters2 = normalRoute?.features?.[0]?.properties?.summary?.distance;
+if (meters2 != null) {
+  const km2 = (meters2 / 1000).toFixed(2);
+  showStatus(`⚠️ مسار متاح (قد يمر بمناطق خطرة). طول المسار: ${meters2.toFixed(0)} م (${km2} كم)`);
+  const msg = document.getElementById("msg");
+  if (msg) { msg.style.display = "block"; msg.textContent = `طول المسار: ${meters2.toFixed(0)} م (${km2} كم)`; }
+}
+ 
     } catch (e2) {
       console.error("Normal route failed:", e2);
       showStatus("❌ فشل حساب المسار. تأكدي من المفتاح/الإنترنت/اختيار نقاط قرب الطرق.");
@@ -325,7 +346,17 @@ function initMap() {
 
   addTopLeftControls();
   addLegend();
-  loadLayers();
+  loadLayers(); 
+   // Go to coordinates
+const goBtn = document.getElementById("goBtn");
+if (goBtn) {
+  goBtn.addEventListener("click", () => {
+    const p = getInputLatLng();
+    if (!p) return alert("اكتب Lat و Lng صح");
+    map.flyTo(p, 15);
+  });
+}
+
 
   // Pick start/end points
   map.on("click", (e) => {
@@ -339,10 +370,11 @@ function initMap() {
       startMarker.on("dragend", () => {
         startLatLng = startMarker.getLatLng();
         clearRoute();
-        showStatus('تم تعديل نقطة البداية. اضغطي "احسب المسار".');
+        showStatus('تم تعديل نقطة البداية. اضغط "احسب المسار".');
       });
+       
 
-      showStatus("اختاري نقطة النهاية.");
+      showStatus("اختار نقطة النهاية.");
       return;
     }
 
@@ -356,10 +388,10 @@ function initMap() {
       endMarker.on("dragend", () => {
         endLatLng = endMarker.getLatLng();
         clearRoute();
-        showStatus('تم تعديل نقطة النهاية. اضغطي "احسب المسار".');
+        showStatus('تم تعديل نقطة النهاية. اضغط "احسب المسار".');
       });
 
-      showStatus('جاهزة ✅ اضغطي "احسب المسار".');
+      showStatus('جاهز ✅ اضغط "احسب المسار".');
       return;
     }
 
@@ -367,7 +399,7 @@ function initMap() {
     endLatLng = e.latlng;
     if (endMarker) endMarker.setLatLng(endLatLng);
     clearRoute();
-    showStatus('تم تحديث نقطة النهاية. اضغطي "احسب المسار".');
+    showStatus('تم تحديث نقطة النهاية. اضغط "احسب المسار".');
   });
 }
 
