@@ -195,34 +195,7 @@ async function calculateSafeRoute() {
 }
 
 // ---------- UI controls ----------
-function addTopLeftControls() {
-  const control = L.control({ position: "topleft" });
 
-  control.onAdd = function () {
-    const div = L.DomUtil.create("div", "map-controls");
-    div.style.display = "flex";
-    div.style.gap = "8px";
-
-    const resetBtn = L.DomUtil.create("button", "btn", div);
-    resetBtn.textContent = "Reset";
-    resetBtn.style.padding = "6px 10px";
-    resetBtn.style.cursor = "pointer";
-
-    const calcBtn = L.DomUtil.create("button", "btn", div);
-    calcBtn.textContent = "احسب المسار";
-    calcBtn.style.padding = "6px 10px";
-    calcBtn.style.cursor = "pointer";
-
-    L.DomEvent.disableClickPropagation(div);
-
-    resetBtn.onclick = () => resetAll();
-    calcBtn.onclick = () => calculateSafeRoute();
-
-    return div;
-  };
-
-  control.addTo(map);
-}
 
 function addLegend() {
   const legend = L.control({ position: "bottomright" });
@@ -309,7 +282,7 @@ function initMap() {
     noWrap: true
   }).addTo(map);
 
-  addTopLeftControls();
+  // addTopLeftControls();
   addLegend();
   loadLayers();
 
