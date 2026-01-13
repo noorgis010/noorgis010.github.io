@@ -32,7 +32,7 @@ button{
 
 #topbar{
   position: absolute; top: 12px; right: 50px;
-  left: 70;
+  left: 100;
   z-index: 1000;
   display: flex; gap: 10px; flex-wrap: wrap;
 }
