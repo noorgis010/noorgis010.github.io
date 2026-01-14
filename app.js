@@ -43,6 +43,21 @@ function showStatus(msg) {
   const el = $("statusBox");
   if (el) el.textContent = msg;
 }
+function enableManualMode(reason = "لم يتم الحصول على الموقع") {
+  // لا تكرر التحويل إن كان مفعّلًا
+  if (map?._geoFailed) return;
+
+  map._geoFailed = true;
+
+  showStatus("⚠️ " + reason + " — استخدم الوضع اليدوي: اختر نقطة البداية ثم نقطة النهاية.");
+  setTopPill?.("الوضع اليدوي: اختر Start ثم End.");
+
+  // ركّز على منطقة الدراسة إن كانت محمّلة
+  try {
+    if (floodLayer) map.fitBounds(floodLayer.getBounds(), { padding: [20, 20] });
+  } catch {}
+}
+
 
 function setTopPill(msg) {
   const pill = document.querySelector("#topbar .pill");
@@ -670,6 +685,8 @@ function requestUserLocationOnce() {
       map._geoFailed = false;
 
       const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+      map._geoFailed = false;
+
       updateUserMarker(latlng);
       setStartFromUserLocation(latlng);
 
@@ -702,6 +719,13 @@ function initMap() {
   addTopLeftControls();
   addLegend();
   loadLayers();
+   // ✅ إذا لم يصل موقع خلال 10 ثوانٍ: فعّل الوضع اليدوي تلقائيًا
+setTimeout(() => {
+  if (!startLatLng && !map._geoFailed) {
+    enableManualMode("تعذر تحديد الموقع تلقائيًا خلال المهلة");
+  }
+}, 10000);
+
 
   // ابدأ بتحديد موقع المستخدم تلقائيًا (الأفضل)
   // startWatchingUserLocation(false);
