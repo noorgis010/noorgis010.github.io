@@ -159,7 +159,7 @@ async function fetchORSRoute(start, end, avoidGeometry = null) {
       [end.lng, end.lat]
     ],
     // ✅ كبّرنا السناب لتقليل أخطاء 404
-    radiuses: [4000, 4000]
+    radiuses: [6000, 6000]
   };
 
   if (avoidGeometry) body.options = { avoid_polygons: avoidGeometry };
@@ -182,18 +182,22 @@ async function fetchORSRoute(start, end, avoidGeometry = null) {
     let details = "";
     try {
       details = await res.text();
-    } catch {}
+    } catch {} 
+    console.warn("ORS raw error:", res.status, details);
+    let userMsg = "تعذّر حساب المسار. حاول مرة أخرى.";
+    if (res.status === 404) {
+       userMsg = "لم يُعثر على طريق بين النقطتين. اختر نقطة أقرب إلى شارع واضح ثم أعد المحاولة.";
+    } else if (res.status === 401 || res.status === 403) {
+      userMsg = "تعذّر استخدام خدمة المسارات بسبب مشكلة في مفتاح ORS.";
+    } else if (res.status === 429) {
+      userMsg = "تم تجاوز حد الاستخدام لخدمة ORS. حاول بعد قليل.";
+    } else if (res.status >= 500) {
+      userMsg = "خدمة المسارات غير متاحة مؤقتًا. حاول لاحقًا.";
+    }
 
-    // ✅ اعرض السبب للمستخدم
-    const msg =
-      `خطأ ORS (${res.status}). ` +
-      (res.status === 401 || res.status === 403 ? "المفتاح غير صالح/محظور." : "") +
-      (res.status === 429 ? "تجاوزت حد الاستخدام (Rate limit)." : "") +
-      (res.status === 404 ? "لا يوجد طريق قريب من إحدى النقاط (جرّب نقطة أقرب لطريق)." : "") +
-      (details ? `\nالتفاصيل: ${details}` : "");
 
     showStatus("❌ " + msg);
-    throw new Error(msg);
+    throw new Error(userMsg);
   }
 
   return await res.json();
