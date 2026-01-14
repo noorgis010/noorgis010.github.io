@@ -498,7 +498,7 @@ function addTopLeftControls() {
 
     gmapsBtn.onclick = () => openInGoogleMaps();
     calcBtn.onclick = () => calculateSafeRoute();
-    resetBtn.onclick = () => resetEndOnly(); // يحافظ على البداية (الموقع) ويصفّر النهاية
+    resetBtn.onclick = () => resetAll(); // يحافظ على البداية (الموقع) ويصفّر النهاية
 
     return div;
   };
