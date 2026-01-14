@@ -504,6 +504,15 @@ function addTopLeftControls() {
     gmapsBtn.textContent = "Google Maps";
     gmapsBtn.style.padding = "6px 10px";
     gmapsBtn.style.cursor = "pointer";
+    const locBtn = L.DomUtil.create("button", "btn", div);
+    locBtn.textContent = "تحديد موقعي";
+    locBtn.style.padding = "6px 10px";
+    locBtn.style.cursor = "pointer";
+
+    locBtn.onclick = () => {
+      requestUserLocationOnce();
+    };
+
 
     const calcBtn = L.DomUtil.create("button", "btn", div);
     calcBtn.textContent = "احسب المسار";
@@ -620,6 +629,66 @@ async function loadLayers() {
     alert("مشكلة في تحميل الملفات. تحقق من أسماء ملفات GeoJSON داخل GitHub وأنها مطابقة تمامًا.");
   }
 }
+function requestUserLocationOnce() {
+  if (!navigator.geolocation) {
+    map._geoFailed = true;
+    showStatus("⚠️ المتصفح لا يدعم تحديد الموقع. استخدم الوضع اليدوي (Start ثم End).");
+    setTopPill("الوضع اليدوي: اختر Start ثم End.");
+    return;
+  }
+
+  showStatus("📍 جارٍ تحديد موقعك... الرجاء الانتظار.");
+  setTopPill("جارٍ تحديد الموقع...");
+
+  let finished = false;
+
+  const toManual = (reason) => {
+    if (finished) return;
+    finished = true;
+
+    map._geoFailed = true;
+    stopWatchingUserLocation?.();
+
+    showStatus("⚠️ " + reason + " — استخدم الوضع اليدوي (Start ثم End).");
+    setTopPill("الوضع اليدوي: اختر Start ثم End.");
+
+    try {
+      if (floodLayer) map.fitBounds(floodLayer.getBounds(), { padding: [20, 20] });
+    } catch {}
+  };
+
+  // قاطع تعليق نهائي
+  setTimeout(() => {
+    toManual("تعذر الحصول على الموقع ضمن المهلة");
+  }, 12000);
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      if (finished) return;
+      finished = true;
+
+      map._geoFailed = false;
+
+      const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+      updateUserMarker(latlng);
+      setStartFromUserLocation(latlng);
+
+      map.flyTo(latlng, 15);
+
+      showStatus("✅ تم تحديد موقعك كبداية. اختر نقطة النهاية على الخريطة.");
+      setTopPill("اختر النهاية فقط (البداية = موقعك).");
+
+      // إذا تريد تتبّع الحركة للتنبيه
+      startWatchingUserLocation?.(true);
+    },
+    (err) => {
+      if (err?.code === 1) toManual("تم رفض إذن الموقع");
+      else if (err?.code === 2) toManual("الموقع غير متاح على الجهاز");
+      else toManual("انتهت مهلة تحديد الموقع");
+    },
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
+  );
+}
 
 function initMap() {
   map = L.map("map", { zoomControl: true }).setView([31.9038, 35.2034], 11);
@@ -635,7 +704,8 @@ function initMap() {
   loadLayers();
 
   // ابدأ بتحديد موقع المستخدم تلقائيًا (الأفضل)
-  startWatchingUserLocation(false);
+  // startWatchingUserLocation(false);
+
 
   // اختيار النقاط:
   // - إذا نجح GPS: المستخدم يختار End فقط.
