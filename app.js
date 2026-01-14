@@ -551,38 +551,9 @@ function addLegend() {
 // ---------- Map + Layers ----------
 async function loadGeoJSON(url) {
   const res = await fetch(url, { cache: "no-store" });
-if (!res.ok) {
-  // خذ التفاصيل الطويلة لكن لا تعرضها للمستخدم
-  let details = "";
-  try { details = await res.text(); } catch {}
-
-  // ✅ سجل التفاصيل في الـ Console فقط
-  console.warn("ORS raw error:", res.status, details);
-
-  // ✅ رسالة جميلة للمستخدم حسب كود الخطأ
-  let userMsg = "تعذر حساب المسار. حاول مرة أخرى.";
-
-  if (res.status === 404) {
-    userMsg = "لم يتم العثور على طريق بين النقطتين. اختر نقطة أقرب إلى شارع/طريق واضح ثم أعد المحاولة.";
-  } else if (res.status === 401 || res.status === 403) {
-    userMsg = "تعذر استخدام خدمة المسارات بسبب مشكلة في مفتاح ORS.";
-  } else if (res.status === 429) {
-    userMsg = "تم تجاوز حد الاستخدام لخدمة ORS. حاول بعد قليل أو استخدم مفتاحًا جديدًا.";
-  } else if (res.status >= 500) {
-    userMsg = "خدمة المسارات غير متاحة مؤقتًا. حاول لاحقًا.";
-  }
-
-  // ✅ اعرض فقط الرسالة اللطيفة
-  showStatus("❌ " + userMsg);
-
-  // لو عندك showToast (اختياري) استعملها
-  if (typeof showToast === "function") {
-    showToast(userMsg, "warn", 9000);
-  }
-
-  throw new Error(userMsg); // رمي رسالة مختصرة بدل الـ JSON الطويل
+  if (!res.ok) throw new Error("Failed to load " + url);
+  return await res.json();
 }
-
 
 async function loadLayers() {
   try {
