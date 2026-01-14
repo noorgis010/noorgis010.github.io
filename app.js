@@ -158,13 +158,14 @@ async function fetchORSRoute(start, end, avoidGeometry = null) {
       [start.lng, start.lat],
       [end.lng, end.lat]
     ],
-    radiuses: [2000, 2000]
+    // ✅ كبّرنا السناب لتقليل أخطاء 404
+    radiuses: [4000, 4000]
   };
 
   if (avoidGeometry) body.options = { avoid_polygons: avoidGeometry };
 
   if (typeof ORS_API_KEY === "undefined" || !ORS_API_KEY) {
-    throw new Error("ORS_API_KEY is missing. Put it in config.js فقط.");
+    throw new Error("مفتاح ORS غير موجود في config.js");
   }
 
   const res = await fetch(url, {
@@ -177,11 +178,27 @@ async function fetchORSRoute(start, end, avoidGeometry = null) {
   });
 
   if (!res.ok) {
-    const t = await res.text().catch(() => "");
-    throw new Error(`ORS Error ${res.status}: ${t}`);
+    // ✅ اجلب رسالة الخطأ من ORS (مهم جدًا)
+    let details = "";
+    try {
+      details = await res.text();
+    } catch {}
+
+    // ✅ اعرض السبب للمستخدم
+    const msg =
+      `خطأ ORS (${res.status}). ` +
+      (res.status === 401 || res.status === 403 ? "المفتاح غير صالح/محظور." : "") +
+      (res.status === 429 ? "تجاوزت حد الاستخدام (Rate limit)." : "") +
+      (res.status === 404 ? "لا يوجد طريق قريب من إحدى النقاط (جرّب نقطة أقرب لطريق)." : "") +
+      (details ? `\nالتفاصيل: ${details}` : "");
+
+    showStatus("❌ " + msg);
+    throw new Error(msg);
   }
+
   return await res.json();
 }
+
 
 function drawRoute(routeGeojson, isSafe = true) {
   clearRoute();
