@@ -20,6 +20,16 @@ let routeLayer = null;
 let startLatLng = null;
 let endLatLng = null;
 
+// --- User location tracking ---
+let userMarker = null;
+let watchId = null;
+
+// Warning settings
+let lastWarnTime = 0;
+const WARN_COOLDOWN_MS = 15000;      // لا تكرري التحذير أسرع من 15 ثانية
+const WARNING_DISTANCE_M = 120;      // مسافة التحذير بالمتر (عدليها)
+const HIGH_RISK_MIN = 4;             // gridcode >= 4 يعتبر عالي
+
 // ---------- Helpers ----------
 function getInputLatLng() {
   const lat = parseFloat(document.getElementById("latInput")?.value);
@@ -37,6 +47,20 @@ function showStatus(msg) {
   if (el) el.textContent = msg;
 }
 
+function setMsg(text) {
+  const msg = $("msg");
+  if (!msg) return;
+  msg.style.display = "block";
+  msg.textContent = text;
+}
+
+function clearMsg() {
+  const msg = $("msg");
+  if (!msg) return;
+  msg.style.display = "none";
+  msg.textContent = "";
+}
+
 function clearRoute() {
   if (routeLayer) {
     map.removeLayer(routeLayer);
@@ -44,15 +68,40 @@ function clearRoute() {
   }
 }
 
-function resetAll() {
-  if (startMarker) map.removeLayer(startMarker);
+function resetEndOnly() {
+  // نرجّع فقط النهاية + المسار
   if (endMarker) map.removeLayer(endMarker);
-  startMarker = null;
   endMarker = null;
-  startLatLng = null;
   endLatLng = null;
   clearRoute();
-  showStatus("اختار نقطة البداية ثم نقطة النهاية على الخريطة.");
+  clearMsg();
+
+  if (startLatLng) {
+    showStatus("✅ البداية هي موقعك الحالي. الآن اختاري نقطة النهاية على الخريطة.");
+  } else {
+    showStatus("📍 جاري تحديد موقعك كبداية...");
+  }
+}
+
+function resetAll() {
+  // لو بدك Reset كامل
+  if (startMarker) map.removeLayer(startMarker);
+  if (endMarker) map.removeLayer(endMarker);
+  if (userMarker) map.removeLayer(userMarker);
+
+  startMarker = null;
+  endMarker = null;
+  userMarker = null;
+
+  startLatLng = null;
+  endLatLng = null;
+
+  clearRoute();
+  clearMsg();
+  stopWatchingUserLocation();
+
+  showStatus("📍 جاري تحديد موقعك كبداية...");
+  startWatchingUserLocation(); // مباشرة ارجعي خذي الموقع
 }
 
 // ---------- Flood styling ----------
@@ -84,13 +133,11 @@ function roadsStyle() {
 }
 
 // ---------- ORS helpers ----------
-
 // ORS expects avoid_polygons as a GEOMETRY (Polygon/MultiPolygon), not FeatureCollection.
-// We'll convert high-risk flood features (gridcode >=4) into one MultiPolygon geometry.
 function buildAvoidPolygonsGeometry(floodFC) {
   if (!floodFC?.features?.length) return null;
 
-  const highs = floodFC.features.filter(f => Number(f?.properties?.gridcode) >= 4);
+  const highs = floodFC.features.filter(f => Number(f?.properties?.gridcode) >= HIGH_RISK_MIN);
   if (!highs.length) return null;
 
   const multiCoords = [];
@@ -100,36 +147,31 @@ function buildAvoidPolygonsGeometry(floodFC) {
     if (!geom) continue;
 
     if (geom.type === "Polygon") {
-      // Polygon.coordinates = [ [ring1], [ring2]... ]
       multiCoords.push(geom.coordinates);
     } else if (geom.type === "MultiPolygon") {
-      // MultiPolygon.coordinates = [ [ [ring]... ], [ [ring]... ] ... ]
       for (const poly of geom.coordinates) multiCoords.push(poly);
     }
   }
 
   if (!multiCoords.length) return null;
-
   return { type: "MultiPolygon", coordinates: multiCoords };
 }
 
 async function fetchORSRoute(start, end, avoidGeometry = null) {
   const url = "https://api.openrouteservice.org/v2/directions/driving-car/geojson";
 
-  // radiuses: increase snap radius to reduce "could not find routable point within 350m"
   const body = {
     coordinates: [
       [start.lng, start.lat],
       [end.lng, end.lat]
     ],
-    radiuses: [2000, 2000] // meters (زيديها لو لسه بطلع 404)
+    radiuses: [2000, 2000]
   };
 
   if (avoidGeometry) {
     body.options = { avoid_polygons: avoidGeometry };
   }
 
-  // Validate key exists
   if (typeof ORS_API_KEY === "undefined" || !ORS_API_KEY) {
     throw new Error("ORS_API_KEY is missing. Put it in config.js فقط.");
   }
@@ -166,13 +208,16 @@ function drawRoute(routeGeojson, isSafe = true) {
 }
 
 async function calculateSafeRoute() {
-  if (!startLatLng || !endLatLng) {
-    alert("يجب اختيار نقطتين: البداية والنهاية.");
+  if (!startLatLng) {
+    alert("📍 لم يتم تحديد موقعك بعد. انتظري ثواني واسمحي بالموقع.");
     return;
   }
-
+  if (!endLatLng) {
+    alert("اختاري نقطة النهاية على الخريطة.");
+    return;
+  }
   if (!floodDataGlobal) {
-    alert("طبقة الخطورة لم تُحمّل بعد انتظر ثواني");
+    alert("طبقة الخطورة لم تُحمّل بعد. انتظري ثواني.");
     return;
   }
 
@@ -181,37 +226,150 @@ async function calculateSafeRoute() {
   const avoidGeom = buildAvoidPolygonsGeometry(floodDataGlobal);
 
   try {
-    // 1) Safe route (avoid high risk)
+    // 1) Safe route
     const safeRoute = await fetchORSRoute(startLatLng, endLatLng, avoidGeom);
     drawRoute(safeRoute, true);
-     const meters = safeRoute?.features?.[0]?.properties?.summary?.distance;
-if (meters != null) {
-  const km = (meters / 1000).toFixed(2);
-  showStatus(`✅ تم إيجاد مسار آمن. طول المسار: ${meters.toFixed(0)} م (${km} كم)`);
-  const msg = document.getElementById("msg");
-  if (msg) { msg.style.display = "block"; msg.textContent = `طول المسار: ${meters.toFixed(0)} م (${km} كم)`; }
-}
 
+    const meters = safeRoute?.features?.[0]?.properties?.summary?.distance;
+    if (meters != null) {
+      const km = (meters / 1000).toFixed(2);
+      showStatus(`✅ تم إيجاد مسار آمن. طول المسار: ${meters.toFixed(0)} م (${km} كم)`);
+      setMsg(`✅ مسار آمن: ${meters.toFixed(0)} م (${km} كم)`);
+    }
   } catch (e) {
     console.warn("Safe route failed:", e);
 
     try {
-      // 2) Fallback: normal route
+      // 2) Fallback normal route
       const normalRoute = await fetchORSRoute(startLatLng, endLatLng, null);
       drawRoute(normalRoute, false);
+
       const meters2 = normalRoute?.features?.[0]?.properties?.summary?.distance;
-if (meters2 != null) {
-  const km2 = (meters2 / 1000).toFixed(2);
-  showStatus(`⚠️ مسار متاح (قد يمر بمناطق خطرة). طول المسار: ${meters2.toFixed(0)} م (${km2} كم)`);
-  const msg = document.getElementById("msg");
-  if (msg) { msg.style.display = "block"; msg.textContent = `طول المسار: ${meters2.toFixed(0)} م (${km2} كم)`; }
-}
- 
+      if (meters2 != null) {
+        const km2 = (meters2 / 1000).toFixed(2);
+        showStatus(`⚠️ مسار متاح (قد يمر بمناطق خطرة). طول المسار: ${meters2.toFixed(0)} م (${km2} كم)`);
+        setMsg(`⚠️ مسار عادي: ${meters2.toFixed(0)} م (${km2} كم)`);
+      }
     } catch (e2) {
       console.error("Normal route failed:", e2);
-      showStatus("❌ فشل حساب المسار. تأكدي من المفتاح/الإنترنت/اختيار نقاط قرب الطرق.");
+      showStatus("❌ فشل حساب المسار. تأكدي من المفتاح/الإنترنت/نقطة النهاية قرب طريق.");
       alert("فشل حساب المسار. افتحي Console (F12) وشوفي الخطأ.");
     }
+  }
+}
+
+// ---------- Google Maps directions ----------
+function openInGoogleMaps() {
+  if (!startLatLng) {
+    alert("📍 لم يتم تحديد موقعك بعد.");
+    return;
+  }
+  if (!endLatLng) {
+    alert("اختاري نقطة النهاية أولاً.");
+    return;
+  }
+
+  const origin = `${startLatLng.lat},${startLatLng.lng}`;
+  const destination = `${endLatLng.lat},${endLatLng.lng}`;
+
+  // Google Maps Directions (بدون API)
+  const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}&travelmode=driving`;
+  window.open(url, "_blank");
+}
+
+// ---------- Geolocation + Warning ----------
+function updateUserMarker(latlng) {
+  if (!userMarker) {
+    userMarker = L.circleMarker(latlng, {
+      radius: 7,
+      weight: 2,
+      fillOpacity: 0.9
+    }).addTo(map).bindPopup("You");
+  } else {
+    userMarker.setLatLng(latlng);
+  }
+}
+
+function setStartFromUserLocation(latlng) {
+  startLatLng = latlng;
+
+  if (startMarker) map.removeLayer(startMarker);
+  startMarker = L.marker(startLatLng, { draggable: false })
+    .addTo(map)
+    .bindPopup("Start (My Location)")
+    .openPopup();
+}
+
+function warnIfNearFloodRisk(latlng) {
+  // لازم turf موجودة
+  if (!floodDataGlobal || typeof turf === "undefined") return;
+
+  const highRiskGeom = buildAvoidPolygonsGeometry(floodDataGlobal);
+  if (!highRiskGeom) return;
+
+  const now = Date.now();
+  if (now - lastWarnTime < WARN_COOLDOWN_MS) return;
+
+  try {
+    const pt = turf.point([latlng.lng, latlng.lat]);
+    const buffered = turf.buffer(highRiskGeom, WARNING_DISTANCE_M, { units: "meters" });
+    const near = turf.booleanPointInPolygon(pt, buffered);
+
+    if (near) {
+      lastWarnTime = now;
+      showStatus(`⚠️ تحذير: أنت قريب من منطقة خطورة فيضان عالية (ضمن ~${WARNING_DISTANCE_M}م).`);
+      alert(`⚠️ تحذير: اقتربت من منطقة خطورة فيضان عالية (≈ ${WARNING_DISTANCE_M} متر).`);
+    }
+  } catch (e) {
+    console.warn("Risk warning failed:", e);
+  }
+}
+
+function startWatchingUserLocation() {
+  if (!navigator.geolocation) {
+    alert("المتصفح لا يدعم تحديد الموقع.");
+    return;
+  }
+  if (watchId !== null) return;
+
+  watchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      const latlng = L.latLng(pos.coords.latitude, pos.coords.longitude);
+
+      // تحديث مؤشر المستخدم
+      updateUserMarker(latlng);
+
+      // كل مرة: خلي البداية موقع المستخدم الحالي (حسب طلبك)
+      setStartFromUserLocation(latlng);
+
+      // لو النهاية موجودة والمسار مرسوم، ما بنعيد حساب تلقائي (إلا إذا بدك)
+      // فقط بنعمل تنبيه اقتراب
+      warnIfNearFloodRisk(latlng);
+
+      // أول مرة نركز الخريطة حول المستخدم
+      if (!map._didFlyToUserOnce) {
+        map._didFlyToUserOnce = true;
+        map.flyTo(latlng, 15);
+      }
+
+      // لو ما في نهاية لسه
+      if (!endLatLng) {
+        showStatus("✅ تم تحديد موقعك كبداية. الآن اختاري نقطة النهاية على الخريطة.");
+      }
+    },
+    (err) => {
+      console.warn("Geolocation error:", err);
+      alert("تعذر الوصول لموقعك. تأكدي من السماح بالموقع وأن الموقع يعمل على HTTPS.");
+      stopWatchingUserLocation();
+    },
+    { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+  );
+}
+
+function stopWatchingUserLocation() {
+  if (watchId !== null) {
+    navigator.geolocation.clearWatch(watchId);
+    watchId = null;
   }
 }
 
@@ -222,6 +380,7 @@ function addTopLeftControls() {
   control.onAdd = function () {
     const div = L.DomUtil.create("div", "map-controls");
     div.style.display = "flex";
+    div.style.flexWrap = "wrap";
     div.style.gap = "8px";
 
     const resetBtn = L.DomUtil.create("button", "btn", div);
@@ -234,10 +393,16 @@ function addTopLeftControls() {
     calcBtn.style.padding = "6px 10px";
     calcBtn.style.cursor = "pointer";
 
+    const gmapsBtn = L.DomUtil.create("button", "btn", div);
+    gmapsBtn.textContent = "Google Maps";
+    gmapsBtn.style.padding = "6px 10px";
+    gmapsBtn.style.cursor = "pointer";
+
     L.DomEvent.disableClickPropagation(div);
 
-    resetBtn.onclick = () => resetAll();
+    resetBtn.onclick = () => resetEndOnly();
     calcBtn.onclick = () => calculateSafeRoute();
+    gmapsBtn.onclick = () => openInGoogleMaps();
 
     return div;
   };
@@ -272,7 +437,7 @@ function addLegend() {
 
 // ---------- Map + Layers ----------
 async function loadGeoJSON(url) {
-  const res = await fetch(url, { cache: "no-store" }); // يساعد ضد الكاش
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error("Failed to load " + url);
   return await res.json();
 }
@@ -283,20 +448,18 @@ async function loadLayers() {
     try {
       const zonesData = await loadGeoJSON("Ramallh_zones.json");
       zonesLayer = L.geoJSON(zonesData, {
-  style: zonesStyle,
-  onEachFeature: function (feature, layer) {
-    const name = feature.properties?.Name_Engli;
-
-    if (name) {
-      layer.bindTooltip(name, {
-        permanent: false,   // خليها false مبدئيًا
-        direction: "center",
-        className: "zone-label"
-      });
-    }
-  }
-}).addTo(map);
-
+        style: zonesStyle,
+        onEachFeature: function (feature, layer) {
+          const name = feature.properties?.Name_Engli;
+          if (name) {
+            layer.bindTooltip(name, {
+              permanent: false,
+              direction: "center",
+              className: "zone-label"
+            });
+          }
+        }
+      }).addTo(map);
     } catch (e) {
       console.warn("Zones not loaded:", e);
     }
@@ -312,11 +475,7 @@ async function loadLayers() {
     // Flood (main)
     const floodData = await loadGeoJSON("flood.json");
     floodDataGlobal = floodData;
-
     floodLayer = L.geoJSON(floodData, { style: floodStyle }).addTo(map);
-
-    // Zoom directly to study area (fix "world view")
-    map.fitBounds(floodLayer.getBounds(), { padding: [20, 20] });
 
     // Layer control
     const overlays = {};
@@ -326,8 +485,7 @@ async function loadLayers() {
 
     L.control.layers({ "OSM": baseLayer }, overlays, { collapsed: true }).addTo(map);
 
-    showStatus("اختاري نقطة البداية ثم نقطة النهاية على الخريطة.");
-
+    showStatus("📍 جاري تحديد موقعك كبداية...");
   } catch (err) {
     console.error(err);
     alert("في مشكلة بتحميل الملفات. تأكدي من أسماء الملفات داخل GitHub وأنهم نفس الاسم تمامًا.");
@@ -337,7 +495,6 @@ async function loadLayers() {
 function initMap() {
   map = L.map("map", { zoomControl: true }).setView([31.9038, 35.2034], 11);
 
-  // Base layer once + noWrap to avoid repeated worlds
   baseLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     maxZoom: 19,
     attribution: "&copy; OpenStreetMap",
@@ -346,40 +503,32 @@ function initMap() {
 
   addTopLeftControls();
   addLegend();
-  loadLayers(); 
-   // Go to coordinates
-const goBtn = document.getElementById("goBtn");
-if (goBtn) {
-  goBtn.addEventListener("click", () => {
-    const p = getInputLatLng();
-    if (!p) return alert("اكتب Lat و Lng صح");
-    map.flyTo(p, 15);
-  });
-}
+  loadLayers();
 
+  // Go to coordinates
+  const goBtn = document.getElementById("goBtn");
+  if (goBtn) {
+    goBtn.addEventListener("click", () => {
+      const p = getInputLatLng();
+      if (!p) return alert("اكتب Lat و Lng صح");
+      map.flyTo(p, 15);
+    });
+  }
 
-  // Pick start/end points
+  // ✅ كل مرة: ابدأ بتحديد موقع المستخدم تلقائيًا
+  startWatchingUserLocation();
+
+  // ✅ المستخدم يختار النهاية فقط
   map.on("click", (e) => {
+    // لو لسه ما أخذنا موقعه
     if (!startLatLng) {
-      startLatLng = e.latlng;
-      startMarker = L.marker(startLatLng, { draggable: true })
-        .addTo(map)
-        .bindPopup("Start")
-        .openPopup();
-
-      startMarker.on("dragend", () => {
-        startLatLng = startMarker.getLatLng();
-        clearRoute();
-        showStatus('تم تعديل نقطة البداية. اضغط "احسب المسار".');
-      });
-       
-
-      showStatus("اختار نقطة النهاية.");
+      showStatus("📍 انتظري تحديد موقعك أولاً...");
       return;
     }
 
-    if (!endLatLng) {
-      endLatLng = e.latlng;
+    endLatLng = e.latlng;
+
+    if (!endMarker) {
       endMarker = L.marker(endLatLng, { draggable: true })
         .addTo(map)
         .bindPopup("End")
@@ -388,18 +537,16 @@ if (goBtn) {
       endMarker.on("dragend", () => {
         endLatLng = endMarker.getLatLng();
         clearRoute();
+        clearMsg();
         showStatus('تم تعديل نقطة النهاية. اضغط "احسب المسار".');
       });
-
-      showStatus('جاهز ✅ اضغط "احسب المسار".');
-      return;
+    } else {
+      endMarker.setLatLng(endLatLng);
     }
 
-    // Third click updates end point
-    endLatLng = e.latlng;
-    if (endMarker) endMarker.setLatLng(endLatLng);
     clearRoute();
-    showStatus('تم تحديث نقطة النهاية. اضغط "احسب المسار".');
+    clearMsg();
+    showStatus('جاهز ✅ اضغط "احسب المسار".');
   });
 }
 
@@ -436,7 +583,6 @@ function setupLandingIfExists() {
   const howBtn = $("howBtn");
   const howText = $("howText");
 
-  // IMPORTANT: some templates hide/show #mapWrap not #map
   const mapWrap = $("mapWrap");
   const mapEl = $("map");
 
