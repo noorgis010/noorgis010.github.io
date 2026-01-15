@@ -962,6 +962,15 @@ function initMap() {
   addTopLeftControls();
   addLegend();
   loadLayers();
+   // Legend الافتراضي عند بدء التشغيل = طبقة الخطر (flood)
+updateLegend("مستويات الخطورة (gridcode)", [
+  { color:"#2ca25f", label:"(1) منخفضة جدًا" },
+  { color:"#66c2a4", label:"(2) منخفضة" },
+  { color:"#fee08b", label:"(3) متوسطة" },
+  { color:"#f46d43", label:"(4) عالية" },
+  { color:"#d73027", label:"(5) عالية جدًا" }
+]);
+
    // ✅ عند تشغيل طبقة من لوحة الطبقات: اعرض جدولها تلقائيًا
   map.on("overlayadd", (e) => {
   const layer = e.layer;
