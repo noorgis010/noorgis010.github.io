@@ -11,6 +11,12 @@ let map;
 let baseLayer;
 
 let zonesLayer, roadsLayer, floodLayer;
+let elevLayer, slopLayer, rainLayer, soilLayer, flowAcuLayer;
+let layersControl = null;
+
+// سنخزن GeoJSON لكل طبقة عشان نعرض جدولها لما المستخدم يشغّلها
+let soilData = null, rainData = null, elevData = null, slopData = null, flowAcuData = null;
+
 let floodDataGlobal = null;
 
 let startMarker = null;
@@ -43,6 +49,100 @@ function showStatus(msg) {
   const el = $("statusBox");
   if (el) el.textContent = msg;
 }
+function ensureAttrPanel() {
+  if (document.getElementById("attrPanel")) return;
+
+  const mapEl = document.getElementById("map");
+  if (!mapEl) return;
+
+  const panel = document.createElement("div");
+  panel.id = "attrPanel";
+  panel.style.position = "absolute";
+  panel.style.right = "12px";
+  panel.style.bottom = "60px";
+  panel.style.width = "min(560px, 92vw)";
+  panel.style.maxHeight = "40vh";
+  panel.style.overflow = "auto";
+  panel.style.background = "rgba(255,255,255,0.95)";
+  panel.style.borderRadius = "12px";
+  panel.style.padding = "10px 12px";
+  panel.style.zIndex = "1200";
+  panel.style.boxShadow = "0 8px 24px rgba(0,0,0,0.25)";
+  panel.style.fontSize = "13px";
+  panel.style.direction = "rtl";
+  panel.style.display = "none";
+
+  panel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+      <div id="attrTitle" style="font-weight:800;"></div>
+      <button id="attrClose" style="border:0;border-radius:10px;padding:6px 10px;cursor:pointer;font-weight:800;">إغلاق</button>
+    </div>
+    <div id="attrBody" style="margin-top:8px;"></div>
+  `;
+
+  const parent = mapEl.parentElement;
+  if (parent) parent.style.position = "relative";
+  parent.appendChild(panel);
+
+  document.getElementById("attrClose")?.addEventListener("click", hideAttrPanel);
+}
+
+function hideAttrPanel() {
+  const panel = document.getElementById("attrPanel");
+  if (!panel) return;
+  panel.style.display = "none";
+  const body = document.getElementById("attrBody");
+  const title = document.getElementById("attrTitle");
+  if (body) body.innerHTML = "";
+  if (title) title.textContent = "";
+}
+
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function showAttributeTable(layerTitle, geojson, columns, limit = 200) {
+  ensureAttrPanel();
+  const panel = document.getElementById("attrPanel");
+  const body = document.getElementById("attrBody");
+  const title = document.getElementById("attrTitle");
+  if (!panel || !body || !title) return;
+
+  const feats = geojson?.features || [];
+  const rows = feats.slice(0, limit);
+
+  title.textContent = `جدول البيانات: ${layerTitle}`;
+
+  let html = `<div style="margin-bottom:8px;opacity:.85;">
+    عدد العناصر: ${feats.length}${feats.length > limit ? ` (يعرض أول ${limit} فقط)` : ""}
+  </div>`;
+
+  html += `<table style="width:100%;border-collapse:collapse;">`;
+  html += `<thead><tr>`;
+  for (const col of columns) {
+    html += `<th style="border-bottom:1px solid rgba(0,0,0,0.12);padding:6px 4px;text-align:right;">${escapeHtml(col)}</th>`;
+  }
+  html += `</tr></thead><tbody>`;
+
+  for (const f of rows) {
+    const p = f?.properties || {};
+    html += `<tr>`;
+    for (const col of columns) {
+      html += `<td style="border-bottom:1px solid rgba(0,0,0,0.08);padding:6px 4px;text-align:right;">${escapeHtml(p[col])}</td>`;
+    }
+    html += `</tr>`;
+  }
+
+  html += `</tbody></table>`;
+  body.innerHTML = html;
+  panel.style.display = "block";
+}
+
 function enableManualMode(reason = "لم يتم الحصول على الموقع") {
   // لا تكرر التحويل إن كان مفعّلًا
   if (map?._geoFailed) return;
@@ -120,6 +220,22 @@ function getFloodColor(gridcode) {
   if (v === 3) return "#fee08b";
   if (v === 4) return "#f46d43";
   return "#d73027";
+}
+function getFiveLevelColor(v) {
+  const n = Number(v);
+  if (n === 1) return "#2ca25f";
+  if (n === 2) return "#66c2a4";
+  if (n === 3) return "#fee08b";
+  if (n === 4) return "#f46d43";
+  return "#d73027";
+}
+
+function makeNonInteractive(layer) {
+  // يمنع الطبقة من التقاط النقرات (حتى يبقى النقر للمسار فقط)
+  layer?.eachLayer?.((lyr) => {
+    if (lyr.options) lyr.options.interactive = false;
+    if (lyr.setStyle) lyr.setStyle({ interactive: false });
+  });
 }
 
 function floodStyle(feature) {
@@ -612,6 +728,101 @@ async function loadLayers() {
     } catch (e) {
       console.warn("Roads not loaded:", e);
     }
+     // --- Soil (DIS + Soil_Risk) ---
+try {
+  soilData = await loadGeoJSON("soil_new.json");
+  soilLayer = L.geoJSON(soilData, {
+    style: (f) => ({
+      color: "#2b2b2b",
+      weight: 0.4,
+      fillColor: getFiveLevelColor(f?.properties?.Soil_Risk),
+      fillOpacity: 0.35
+    })
+  });
+  makeNonInteractive(soilLayer);
+} catch (e) {
+  console.warn("Soil not loaded:", e);
+}
+
+// --- Rain (Rain_Max / Rain_Min) ---
+try {
+  rainData = await loadGeoJSON("rain.json");
+  // تلوين تقريبي حسب Rain_Max إلى 5 فئات
+  const vals = (rainData.features || []).map(x => Number(x?.properties?.Rain_Max)).filter(Number.isFinite);
+  const minV = vals.length ? Math.min(...vals) : 0;
+  const maxV = vals.length ? Math.max(...vals) : 0;
+
+  function rainClass(v) {
+    if (!Number.isFinite(v) || maxV === minV) return 3;
+    const t = (v - minV) / (maxV - minV);
+    if (t <= 0.2) return 1;
+    if (t <= 0.4) return 2;
+    if (t <= 0.6) return 3;
+    if (t <= 0.8) return 4;
+    return 5;
+  }
+
+  rainLayer = L.geoJSON(rainData, {
+    style: (f) => ({
+      color: "#2b2b2b",
+      weight: 0.4,
+      fillColor: getFiveLevelColor(rainClass(Number(f?.properties?.Rain_Max))),
+      fillOpacity: 0.30
+    })
+  });
+  makeNonInteractive(rainLayer);
+} catch (e) {
+  console.warn("Rain not loaded:", e);
+}
+
+// --- Slope (gridcode) ---
+try {
+  slopData = await loadGeoJSON("slop.json");
+  slopLayer = L.geoJSON(slopData, {
+    style: (f) => ({
+      color: "#2b2b2b",
+      weight: 0.4,
+      fillColor: getFiveLevelColor(f?.properties?.gridcode),
+      fillOpacity: 0.25
+    })
+  });
+  makeNonInteractive(slopLayer);
+} catch (e) {
+  console.warn("Slope not loaded:", e);
+}
+
+// --- Elevation (gridcode) ---
+try {
+  elevData = await loadGeoJSON("elev.json");
+  elevLayer = L.geoJSON(elevData, {
+    style: (f) => ({
+      color: "#2b2b2b",
+      weight: 0.4,
+      fillColor: getFiveLevelColor(f?.properties?.gridcode),
+      fillOpacity: 0.25
+    })
+  });
+  makeNonInteractive(elevLayer);
+} catch (e) {
+  console.warn("Elevation not loaded:", e);
+}
+
+// --- Flow accumulation (gridcode) ---
+try {
+  flowAcuData = await loadGeoJSON("flow_acu.json");
+  flowAcuLayer = L.geoJSON(flowAcuData, {
+    style: (f) => ({
+      color: "#2b2b2b",
+      weight: 0.4,
+      fillColor: getFiveLevelColor(f?.properties?.gridcode),
+      fillOpacity: 0.25
+    })
+  });
+  makeNonInteractive(flowAcuLayer);
+} catch (e) {
+  console.warn("Flow not loaded:", e);
+}
+
 
     // Flood (main)
     const floodData = await loadGeoJSON("flood.json");
@@ -634,8 +845,14 @@ async function loadLayers() {
     if (roadsLayer) overlays["الطرق"] = roadsLayer;
     if (zonesLayer) overlays["المحافظة"] = zonesLayer;
     if (floodLayer) overlays["مؤشر الخطورة (flood)"] = floodLayer;
+    if (soilLayer) overlays["التربة (Soil)"] = soilLayer;
+    if (rainLayer) overlays["الأمطار (Rain)"] = rainLayer;
+    if (slopLayer) overlays["الانحدار (Slope)"] = slopLayer;
+    if (elevLayer) overlays["الارتفاعات (Elevation)"] = elevLayer;
+    if (flowAcuLayer) overlays["تراكم الجريان (Flow Accu)"] = flowAcuLayer;
 
-    L.control.layers({ "OSM": baseLayer }, overlays, { collapsed: true }).addTo(map);
+
+    layersControl = L.control.layers({ "OSM": baseLayer }, overlays, { collapsed: true }).addTo(map);
 
     showStatus("📍 جارٍ تحديد موقعك كبداية...");
     setTopPill("جارٍ تحديد موقعك...");
@@ -719,6 +936,37 @@ function initMap() {
   addTopLeftControls();
   addLegend();
   loadLayers();
+   // ✅ عند تشغيل طبقة من لوحة الطبقات: اعرض جدولها تلقائيًا
+  map.on("overlayadd", (e) => {
+  const layer = e.layer;
+
+  if (layer === soilLayer && soilData) {
+    showAttributeTable("التربة", soilData, ["DIS", "Soil_Risk"]);
+  } else if (layer === rainLayer && rainData) {
+    showAttributeTable("الأمطار", rainData, ["Rain_Max", "Rain_Min"]);
+  } else if (layer === slopLayer && slopData) {
+    showAttributeTable("الانحدار", slopData, ["gridcode"]);
+  } else if (layer === elevLayer && elevData) {
+    showAttributeTable("الارتفاعات", elevData, ["gridcode"]);
+  } else if (layer === flowAcuLayer && flowAcuData) {
+    showAttributeTable("تراكم الجريان", flowAcuData, ["gridcode"]);
+  }
+});
+
+// ✅ عند إطفاء طبقة: أخفِ الجدول إذا كانت هي المعروضة
+  map.on("overlayremove", (e) => {
+  const layer = e.layer;
+  if (
+    layer === soilLayer ||
+    layer === rainLayer ||
+    layer === slopLayer ||
+    layer === elevLayer ||
+    layer === flowAcuLayer
+  ) {
+    hideAttrPanel();
+  }
+});
+
    // ✅ إذا لم يصل موقع خلال 10 ثوانٍ: فعّل الوضع اليدوي تلقائيًا
 setTimeout(() => {
   if (!startLatLng && !map._geoFailed) {
