@@ -760,7 +760,7 @@ try {
       color: "#2b2b2b",
       weight: 0.4,
       fillColor: getFiveLevelColor(f?.properties?.Soil_Risk),
-      fillOpacity: 0.35
+      fillOpacity: 0.50
     })
   });
   makeNonInteractive(soilLayer);
@@ -791,7 +791,7 @@ try {
       color: "#2b2b2b",
       weight: 0.4,
       fillColor: getFiveLevelColor(rainClass(Number(f?.properties?.Rain_Max))),
-      fillOpacity: 0.30
+      fillOpacity: 0.50
     })
   });
   makeNonInteractive(rainLayer);
@@ -807,7 +807,7 @@ try {
       color: "#2b2b2b",
       weight: 0.4,
       fillColor: getFiveLevelColor(f?.properties?.gridcode),
-      fillOpacity: 0.25
+      fillOpacity: 0.50
     })
   });
   makeNonInteractive(slopLayer);
@@ -841,7 +841,7 @@ try {
       color: "#2b2b2b",
       weight: 0.4,
       fillColor: getFiveLevelColor(f?.properties?.gridcode),
-      fillOpacity: 0.25
+      fillOpacity: 0.50
     })
   });
   makeNonInteractive(flowAcuLayer);
@@ -1007,7 +1007,7 @@ updateLegend("مستويات الخطورة (gridcode)", [
 ]);
 
   } else if (layer === slopLayer && slopData) {
-    showAttributeTable("الانحدار", slopData, ["gridcode"]);
+    
     updateLegend("مستويات الخطورة (gridcode)", [
   { color:"#2ca25f", label:"منخفض جدًا (1)" },
   { color:"#66c2a4", label:"منخفض (2)" },
@@ -1017,7 +1017,7 @@ updateLegend("مستويات الخطورة (gridcode)", [
 ]);
 
   } else if (layer === elevLayer && elevData) {
-    showAttributeTable("الارتفاعات", elevData, ["gridcode"]);
+    
     updateLegend("الارتفاعات (المنخفض = أخطر)", [
   { color:"#d73027", label:"عالي جدا (1)" },
   { color:"#f46d43", label:"عالي (2)" },
@@ -1027,7 +1027,7 @@ updateLegend("مستويات الخطورة (gridcode)", [
 ]);
 
   } else if (layer === flowAcuLayer && flowAcuData) {
-    showAttributeTable("تراكم الجريان", flowAcuData, ["gridcode"]);
+    
     updateLegend("مستويات الخطورة (gridcode)", [
   { color:"#2ca25f", label:"منخفض جدًا (1)" },
   { color:"#66c2a4", label:"منخفض (2)" },
