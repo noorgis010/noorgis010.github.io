@@ -678,8 +678,8 @@ function addLegend() {
     div.style.lineHeight = "1.6";
     div.style.fontSize = "13px";
 
-    div.innerHTML = `
-      <b>مفتاح الخطورة (gridcode)</b><br/>
+    div.innerHTML = `<b id="legendTitle">Legend</b><div id="legendBody"></div>`;
+
       <div><span style="display:inline-block;width:14px;height:14px;background:#2ca25f;margin-left:6px;border:1px solid #555"></span>(1) منخفضة جدًا</div>
       <div><span style="display:inline-block;width:14px;height:14px;background:#66c2a4;margin-left:6px;border:1px solid #555"></span>(2) منخفضة</div>
       <div><span style="display:inline-block;width:14px;height:14px;background:#fee08b;margin-left:6px;border:1px solid #555"></span>(3) متوسطة</div>
@@ -691,6 +691,36 @@ function addLegend() {
 
   legend.addTo(map);
 }
+function updateLegend(title, labels) {
+  const t = document.getElementById("legendTitle");
+  const b = document.getElementById("legendBody");
+  if (!t || !b) return;
+
+  t.textContent = title;
+  b.innerHTML = "";
+
+  labels.forEach(l => {
+    const row = document.createElement("div");
+    row.style.display = "flex";
+    row.style.alignItems = "center";
+    row.style.gap = "8px";
+    row.style.margin = "4px 0";
+
+    const sw = document.createElement("span");
+    sw.style.width = "14px";
+    sw.style.height = "14px";
+    sw.style.background = l.color;
+    sw.style.border = "1px solid #555";
+
+    const txt = document.createElement("span");
+    txt.textContent = l.label;
+
+    row.appendChild(sw);
+    row.appendChild(txt);
+    b.appendChild(row);
+  });
+}
+
 
 // ---------- Map + Layers ----------
 async function loadGeoJSON(url) {
@@ -942,14 +972,54 @@ function initMap() {
 
   if (layer === soilLayer && soilData) {
     showAttributeTable("التربة", soilData, ["DIS", "Soil_Risk"]);
+    updateLegend("خطورة التربة", [
+  { color:"#2ca25f", label:"منخفضة جدًا (1)" },
+  { color:"#66c2a4", label:"منخفضة (2)" },
+  { color:"#fee08b", label:"متوسطة (3)" },
+  { color:"#f46d43", label:"عالية (4)" },
+  { color:"#d73027", label:"عالية جدًا (5)" }
+]);
+
   } else if (layer === rainLayer && rainData) {
     showAttributeTable("الأمطار", rainData, ["Rain_Max", "Rain_Min"]);
+    updateLegend("معدلات الأمطار (Rain_Max)", [
+  { color:"#2ca25f", label:"منخفض" },
+  { color:"#66c2a4", label:"متوسط" },
+  { color:"#fee08b", label:"مرتفع" },
+  { color:"#f46d43", label:"مرتفع جدًا" },
+  { color:"#d73027", label:"أقصى" }
+]);
+
   } else if (layer === slopLayer && slopData) {
     showAttributeTable("الانحدار", slopData, ["gridcode"]);
+    updateLegend("مستويات الخطورة (gridcode)", [
+  { color:"#2ca25f", label:"منخفض جدًا (1)" },
+  { color:"#66c2a4", label:"منخفض (2)" },
+  { color:"#fee08b", label:"متوسط (3)" },
+  { color:"#f46d43", label:"عالي (4)" },
+  { color:"#d73027", label:"عالي جدًا (5)" }
+]);
+
   } else if (layer === elevLayer && elevData) {
     showAttributeTable("الارتفاعات", elevData, ["gridcode"]);
+    updateLegend("مستويات الخطورة (gridcode)", [
+  { color:"#2ca25f", label:"عالي جدا (1)" },
+  { color:"#66c2a4", label:"عالي (2)" },
+  { color:"#fee08b", label:"متوسط (3)" },
+  { color:"#f46d43", label:"منخفض (4)" },
+  { color:"#d73027", label:"منخفض جدا (5)" }
+]);
+
   } else if (layer === flowAcuLayer && flowAcuData) {
     showAttributeTable("تراكم الجريان", flowAcuData, ["gridcode"]);
+    updateLegend("مستويات الخطورة (gridcode)", [
+  { color:"#2ca25f", label:"منخفض جدًا (1)" },
+  { color:"#66c2a4", label:"منخفض (2)" },
+  { color:"#fee08b", label:"متوسط (3)" },
+  { color:"#f46d43", label:"عالي (4)" },
+  { color:"#d73027", label:"عالي جدًا (5)" }
+]);
+
   }
 });
 
@@ -964,6 +1034,8 @@ function initMap() {
     layer === flowAcuLayer
   ) {
     hideAttrPanel();
+    updateLegend("Legend", []);
+
   }
 });
 
