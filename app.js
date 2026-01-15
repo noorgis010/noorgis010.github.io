@@ -444,7 +444,8 @@ async function calculateSafeRoute() {
     const safeRoute = await fetchORSRoute(startLatLng, endLatLng, avoidGeom);
     drawRoute(safeRoute, true);
     const gUrl = buildGoogleMapsUrlFromRoute(safeRoute, startLatLng, endLatLng);
-    const gBtn = document.getElementById("ID_زر_جوجل_عندك"); 
+    const gBtn = [...document.querySelectorAll("button")]
+  .find(b => b.textContent.includes("Google")); 
    if (gBtn) {
   gBtn.onclick = () => window.open(gUrl, "_blank");
 }
