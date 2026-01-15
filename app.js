@@ -823,6 +823,8 @@ try {
       color: "#2b2b2b",
       weight: 0.4,
       fillColor: getFiveLevelColor(f?.properties?.gridcode),
+      fillColor: getFiveLevelColor(6 - Number(feature.properties.gridcode)),
+
       fillOpacity: 0.50
     })
   });
@@ -866,8 +868,8 @@ try {
 
     // Layer control
     const overlays = {};
-    if (roadsLayer) overlays["الطرق"] = roadsLayer;
-    if (zonesLayer) overlays["المحافظة"] = zonesLayer;
+    if (roadsLayer) overlays["(Roads)الطرق"] = roadsLayer;
+    if (zonesLayer) overlays["(Zones)المحافظة"] = zonesLayer;
     if (floodLayer) overlays["مؤشر الخطورة (flood)"] = floodLayer;
     if (soilLayer) overlays["التربة (Soil)"] = soilLayer;
     if (rainLayer) overlays["الأمطار (Rain)"] = rainLayer;
@@ -996,7 +998,7 @@ function initMap() {
 
   } else if (layer === elevLayer && elevData) {
     showAttributeTable("الارتفاعات", elevData, ["gridcode"]);
-    updateLegend("مستويات الخطورة (gridcode)", [
+    updateLegend("الارتفاعات (المنخفض = أخطر)", [
   { color:"#d73027", label:"عالي جدا (1)" },
   { color:"#f46d43", label:"عالي (2)" },
   { color:"#fee08b", label:"متوسط (3)" },
