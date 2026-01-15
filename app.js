@@ -822,8 +822,8 @@ try {
     style: (f) => ({
       color: "#2b2b2b",
       weight: 0.4,
-      fillColor: getFiveLevelColor(f?.properties?.gridcode),
-      fillColor: getFiveLevelColor(6 - Number(feature.properties.gridcode)),
+      
+      fillColor: getFiveLevelColor(6 - Number(f?.properties?.gridcode)),
 
       fillOpacity: 0.50
     })
