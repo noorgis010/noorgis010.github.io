@@ -348,6 +348,28 @@ function drawRoute(routeGeojson, isSafe = true) {
 
   map.fitBounds(routeLayer.getBounds(), { padding: [30, 30] });
 }
+function buildGoogleMapsUrlFromRoute(routeGeojson, start, end) {
+  const MAX_WP = 10;
+
+  const coords = routeGeojson?.features?.[0]?.geometry?.coordinates;
+  if (!coords || coords.length < 2) {
+    return `https://www.google.com/maps/dir/?api=1&origin=${start.lat},${start.lng}&destination=${end.lat},${end.lng}&travelmode=driving`;
+  }
+
+  const step = Math.max(1, Math.floor(coords.length / (MAX_WP + 1)));
+  const waypoints = [];
+
+  for (let i = step; i < coords.length - 1 && waypoints.length < MAX_WP; i += step) {
+    const [lng, lat] = coords[i];
+    waypoints.push(`${lat},${lng}`);
+  }
+
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${start.lat},${start.lng}&destination=${end.lat},${end.lng}&travelmode=driving`;
+  if (waypoints.length) {
+    url += `&waypoints=${encodeURIComponent(waypoints.join("|"))}`;
+  }
+  return url;
+}
 
 // ---------- Risk checks (Route + Live) ----------
 function routeIntersectsHighRisk(routeGeojson) {
@@ -421,6 +443,11 @@ async function calculateSafeRoute() {
     // 1) Safe route
     const safeRoute = await fetchORSRoute(startLatLng, endLatLng, avoidGeom);
     drawRoute(safeRoute, true);
+    const gUrl = buildGoogleMapsUrlFromRoute(safeRoute, startLatLng, endLatLng);
+    const gBtn = document.getElementById("ID_زر_جوجل_عندك"); 
+   if (gBtn) {
+  gBtn.onclick = () => window.open(gUrl, "_blank");
+}
 
     const meters = safeRoute?.features?.[0]?.properties?.summary?.distance;
     const intersects = routeIntersectsHighRisk(safeRoute);
