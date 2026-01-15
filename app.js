@@ -823,7 +823,7 @@ try {
       color: "#2b2b2b",
       weight: 0.4,
       fillColor: getFiveLevelColor(f?.properties?.gridcode),
-      fillOpacity: 0.25
+      fillOpacity: 0.50
     })
   });
   makeNonInteractive(elevLayer);
@@ -997,11 +997,11 @@ function initMap() {
   } else if (layer === elevLayer && elevData) {
     showAttributeTable("الارتفاعات", elevData, ["gridcode"]);
     updateLegend("مستويات الخطورة (gridcode)", [
-  { color:"#2ca25f", label:"عالي جدا (1)" },
-  { color:"#66c2a4", label:"عالي (2)" },
+  { color:"#d73027", label:"عالي جدا (1)" },
+  { color:"#f46d43", label:"عالي (2)" },
   { color:"#fee08b", label:"متوسط (3)" },
-  { color:"#f46d43", label:"منخفض (4)" },
-  { color:"#d73027", label:"منخفض جدا (5)" }
+  { color:"#66c2a4", label:"منخفض (4)" },
+  { color:"#2ca25f", label:"منخفض جدا (5)" }
 ]);
 
   } else if (layer === flowAcuLayer && flowAcuData) {
