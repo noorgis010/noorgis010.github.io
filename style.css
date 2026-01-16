@@ -174,14 +174,16 @@ button{
 .copy-btn:hover{ opacity: 0.95; }
 
 /* ===== University Logo Watermark (Final) ===== */
-/* University Logo above title */
-.landing-logo{
-  width: 110px;          /* حجم مناسب */
-  max-width: 60%;
-  margin: 0 auto 12px;   /* توسيط + مسافة تحت */
+
+.landing-logo.blended{
+  width: 85px;              /* ⬅️ صغير */
+  max-width: 40%;
+  margin: 0 auto 8px;       /* مسافة خفيفة تحت */
   display: block;
 
-  filter: grayscale(100%);
-  opacity: 0.95;
+  opacity: 0.35;            /* ⬅️ مدموج مع الخلفية */
+  filter: grayscale(100%);  /* أكاديمي */
+  mix-blend-mode: multiply; /* ⬅️ يندمج مع اللون */
+  pointer-events: none;
 }
 
