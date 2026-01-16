@@ -123,4 +123,53 @@ button{
   font-size: 12px;
   direction: ltr; /* حتى تظهر الأرقام بشكل صحيح */
 }
+/* Contact block in landing */
+.contact-block{
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(255,255,255,0.25);
+  text-align: center;
+}
+
+.contact-title{
+  color: #6fd3ff;
+  font-weight: 800;
+  margin: 0 0 6px;
+}
+
+.qr-img{
+  width: 160px;
+  max-width: 80%;
+  border-radius: 14px;
+  background: #fff;
+  padding: 10px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+}
+
+.contact-actions{
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.contact-link{
+  color: #ffffff;
+  text-decoration: underline;
+  font-weight: 700;
+  opacity: 0.95;
+}
+
+.copy-btn{
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 800;
+}
+.copy-btn:hover{ opacity: 0.95; }
 
