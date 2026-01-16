@@ -1239,3 +1239,15 @@ window.addEventListener("DOMContentLoaded", () => {
   ensureStatusBox();
   setupLandingIfExists();
 });
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("copyEmailBtn");
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    const email = "noor123@stu.birzeit.edu"; // نفس الإيميل
+    navigator.clipboard.writeText(email).then(() => {
+      btn.textContent = "✔ تم النسخ";
+      setTimeout(() => btn.textContent = "نسخ البريد", 1500);
+    });
+  });
+});
