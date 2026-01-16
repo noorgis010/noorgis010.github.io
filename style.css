@@ -107,19 +107,20 @@ button{
   border-right: 10px solid transparent;
   border-bottom: 26px solid #111;  /* السهم للأعلى */
 }
-/* Map Scale - Bottom Center */
-.leaflet-control-scale {
-  position: absolute !important;
+/* Scale bar centered at bottom (safe Leaflet way) */
+.leaflet-bottom.leaflet-left{
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  right: auto !important;
+}
 
-  left: 50%;
-  bottom: 12px;
-  
-
+.leaflet-bottom.leaflet-left .leaflet-control-scale{
+  margin: 0 !important;
   background: rgba(255,255,255,0.92);
   padding: 6px 10px;
   border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.18);
   font-size: 12px;
-
-  z-index: 1200;
+  direction: ltr; /* حتى تظهر الأرقام بشكل صحيح */
 }
+
