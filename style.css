@@ -172,4 +172,27 @@ button{
   font-weight: 800;
 }
 .copy-btn:hover{ opacity: 0.95; }
+/* University Logo Watermark on Landing Card */
+.landing-card{
+  position: relative; /* مهم */
+  overflow: hidden;   /* مهم */
+}
+
+.landing-card::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: url("img/university-logo.png") no-repeat center;
+  background-size: 260px auto;     /* حجم الشعار */
+  opacity: 0.08;                   /* شفافية خفيفة */
+  pointer-events: none;            /* لا يؤثر على الضغط */
+  filter: grayscale(100%);         /* يخليه أنيق (اختياري) */
+  z-index: 0;
+}
+
+/* اجعل محتوى الكرت فوق الشعار */
+.landing-card > *{
+  position: relative;
+  z-index: 1;
+}
 
