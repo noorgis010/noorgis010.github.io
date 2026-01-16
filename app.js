@@ -991,6 +991,8 @@ function initMap() {
   addTopLeftControls();
   addLegend();
   loadLayers();
+   L.control.scale({ metric: true, imperial: false }).addTo(map);
+
    // Legend الافتراضي عند بدء التشغيل = طبقة الخطر (flood)
 updateLegend("مستويات الخطورة (gridcode)", [
   { color:"#2ca25f", label:"(1) منخفضة جدًا" },
