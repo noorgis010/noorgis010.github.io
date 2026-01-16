@@ -327,7 +327,8 @@ async function fetchORSRoute(start, end, avoidGeometry = null) {
     }
 
 
-    showStatus("❌ " + msg);
+    showStatus("❌ " + userMsg);
+
     throw new Error(userMsg);
   }
 
