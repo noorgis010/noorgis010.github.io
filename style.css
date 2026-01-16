@@ -74,3 +74,36 @@ button{
   font-size: 13px;
   font-weight: 600;
 }
+/* North Arrow */
+#northArrow{
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1200;
+  width: 52px;
+  height: 72px;
+  background: rgba(255,255,255,0.92);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.18);
+  user-select: none;
+}
+
+#northArrow .n{
+  font-weight: 900;
+  font-size: 16px;
+  color: #111;
+  line-height: 1;
+}
+
+#northArrow .arrow{
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 26px solid #111;  /* السهم للأعلى */
+}
