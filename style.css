@@ -176,12 +176,12 @@ button{
 /* ===== University Logo Watermark (Final) ===== */
 
 .landing-logo.blended{
-  width: 85px;              /* ⬅️ صغير */
+  width: 100px;              /* ⬅️ صغير */
   max-width: 40%;
   margin: 0 auto 8px;       /* مسافة خفيفة تحت */
   display: block;
 
-  opacity: 0.35;            /* ⬅️ مدموج مع الخلفية */
+  opacity: 0.45;            /* ⬅️ مدموج مع الخلفية */
   filter: grayscale(100%);  /* أكاديمي */
   mix-blend-mode: multiply; /* ⬅️ يندمج مع اللون */
   pointer-events: none;
