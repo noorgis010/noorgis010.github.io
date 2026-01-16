@@ -77,7 +77,7 @@ button{
 /* North Arrow */
 #northArrow{
   position: absolute;
-  top: 20px;
+
   right: 12px;
   top: auto;
   z-index: 1200;
