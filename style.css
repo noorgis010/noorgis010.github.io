@@ -174,31 +174,14 @@ button{
 .copy-btn:hover{ opacity: 0.95; }
 
 /* ===== University Logo Watermark (Final) ===== */
-.landing-card{
-  position: relative;
-  overflow: hidden;
+/* University Logo above title */
+.landing-logo{
+  width: 110px;          /* حجم مناسب */
+  max-width: 60%;
+  margin: 0 auto 12px;   /* توسيط + مسافة تحت */
+  display: block;
+
+  filter: grayscale(100%);
+  opacity: 0.95;
 }
 
-/* اللوجو كخلفية مدموجة */
-.landing-card::before{
-  content: "";
-  position: absolute;
-  inset: 0;
-
-  background-image: url("img/university-logo.png");
-  background-repeat: no-repeat;
-  background-position: center 1%;   /* ⬆️ فوق */
-  background-size: 240px auto;       /* حجم واضح */
-
-  opacity: 0.25;                     /* وضوح مناسب */
-  filter: grayscale(100%);           /* أكاديمي وهادئ */
-
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* محتوى الكرت فوق اللوجو */
-.landing-card > *{
-  position: relative;
-  z-index: 1;
-}
