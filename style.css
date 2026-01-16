@@ -77,11 +77,11 @@ button{
 /* North Arrow */
 #northArrow{
   position: absolute;
-  left: 20%;
+  left: 10%;
   top: 12px;
   z-index: 1200;
-  width: 52px;
-  height: 72px;
+  width: 40px;
+  height: 50px;
   background: rgba(255,255,255,0.92);
   border-radius: 12px;
   display: flex;
