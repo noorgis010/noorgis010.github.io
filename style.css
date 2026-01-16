@@ -176,7 +176,7 @@ button{
 /* ===== University Logo Watermark (Final) ===== */
 
 .landing-logo.blended{
-  width: 120px;              /* ⬅️ صغير */
+  width: 200px;              /* ⬅️ صغير */
   max-width: 40%;
   margin: 0 auto 8px;       /* مسافة خفيفة تحت */
   display: block;
